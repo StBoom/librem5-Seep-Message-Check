@@ -79,3 +79,18 @@ Permissions for the RTC wake-up control (/sys/class/rtc/rtc0/wakealarm):
 
     sudo chmod 666 /sys/class/rtc/rtc0/wakealarm
 
+Enabling and Starting the Unit Files
+
+After creating the unit files, you need to reload the systemd manager to recognize the new services, enable them, and start them.
+
+sudo systemctl daemon-reload
+sudo systemctl enable wakeup-check-pre.service
+sudo systemctl enable wakeup-check-post.service
+sudo systemctl start wakeup-check-pre.service
+sudo systemctl start wakeup-check-post.service
+
+    daemon-reload: Reloads systemd to recognize new or modified unit files.
+
+    enable: Enables the services to start automatically on boot or when triggered.
+
+    start: Starts the services immediately.
