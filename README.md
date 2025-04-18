@@ -47,13 +47,35 @@ Complete Summary of the Script Functions:
         Post Mode (post):
         In the post mode, the script checks if the system was awakened by the RTC alarm (is_rtc_wakeup). If true, it checks if the current time is within quiet hours (is_quiet_hours). If not in quiet hours, it waits for internet connectivity (wait_for_internet). If the internet is available, it begins monitoring notifications (monitor_notifications). If relevant notifications are found, the system stays awake; otherwise, it suspends again. If no internet is detected, the system suspends again without checking notifications.
 
-Files and Parameters to be Set:
 
-    Configuration File /etc/wakeup-check.conf:
-    Contains variables like TARGET_USER, WAKE_TIMESTAMP_FILE, NEXT_RTC_WAKE_MIN, RTC_WAKE_WINDOW_SECONDS, MAX_WAIT, etc.
+Permissions
 
-    Main Script File wakeup-check.sh:
-    The actual script that executes the logic for checking RTC wake-up, handling notifications, internet connectivity, quiet hours, and system suspend.
+To ensure that everything works smoothly, the following permissions need to be set for the relevant files:
 
-    Log File:
-    The log file (e.g., /var/log/wakeup-check.log) will store the timestamped logs of all actions taken by the script.
+    Permissions for the script /usr/local/bin/wakeup-check.sh:
+
+        The script needs to be executable by the user running it (typically root or a privileged user). Set the execute permission for all users.
+
+sudo chmod +x /usr/local/bin/wakeup-check.sh
+
+Permissions for the configuration file /etc/wakeup-check.conf:
+
+    The configuration file must be readable by the user running the script (again, typically root or a privileged user). You can set the following permissions:
+
+sudo chmod 644 /etc/wakeup-check.conf
+
+This allows the root user to read and write to the file, while others can only read it.
+
+Permissions for the log file /var/log/wakeup-check.log:
+
+    The log file must be writeable by the user executing the script. Set the following permissions (if the file doesn’t exist, ensure it’s created):
+
+sudo touch /var/log/wakeup-check.log
+sudo chmod 666 /var/log/wakeup-check.log
+
+Permissions for the RTC wake-up control (/sys/class/rtc/rtc0/wakealarm):
+
+    The script writes to /sys/class/rtc/rtc0/wakealarm to schedule the RTC wake-up. Ensure that the user running the script has write permissions to this file. Typically, this file is owned by root, but it should be fine if the script is run with elevated privileges (e.g., via sudo).
+
+    sudo chmod 666 /sys/class/rtc/rtc0/wakealarm
+
