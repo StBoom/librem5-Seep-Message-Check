@@ -1,0 +1,12 @@
+[Unit]
+Description=Wakeup Check - Pre Suspend
+DefaultDependencies=no
+Before=suspend.target
+Wants=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wakeup-check.sh pre
+
+[Install]
+WantedBy=suspend.target
