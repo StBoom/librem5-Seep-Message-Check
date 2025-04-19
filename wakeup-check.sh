@@ -46,6 +46,7 @@ use_fbcli() {
     fi
 }
 
+# Check if the current time is within quiet hours
 is_quiet_hours() {
     now_seconds=$(date +%s)
     today=$(date +%Y-%m-%d)
@@ -61,6 +62,7 @@ is_quiet_hours() {
     return $result
 }
 
+# Check if the wake was triggered by RTC
 is_rtc_wakeup() {
     if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
         log "No wake timestamp file found – not an RTC wake."
@@ -87,18 +89,19 @@ is_rtc_wakeup() {
     fi
 }
 
+# Set the RTC wakeup time based on quiet hours and alarms
 set_rtc_wakeup() {
     local now wake_ts quiet_end_ts next_alarm_ts adjusted_wake_ts
     now=$(date +%s)
 
-    # Quiet hours Ende berechnen
+    # Calculate the end of quiet hours
     if [[ "$QUIET_HOURS_START" < "$QUIET_HOURS_END" ]]; then
         quiet_end_ts=$(date -d "today $QUIET_HOURS_END" +%s)
     else
         quiet_end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
     fi
 
-    # Nächsten Alarm abrufen
+    # Get the next alarm time
     next_alarm_ts=$(get_next_alarm_time)
 
     if [[ -z "$next_alarm_ts" || ! "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
@@ -106,7 +109,7 @@ set_rtc_wakeup() {
         next_alarm_ts=$(( quiet_end_ts + 1 ))
     fi
 
-    # RTC Wakeup Zeit setzen (vor dem nächsten Alarm oder Ende der Quiet Hours)
+    # Set RTC wakeup time (before next alarm or after quiet hours)
     if is_quiet_hours; then
         log "Currently in quiet hours."
         wake_ts=$quiet_end_ts
@@ -116,14 +119,14 @@ set_rtc_wakeup() {
         log "Not in quiet hours. Setting RTC wakeup for $(date -d @$wake_ts)"
     fi
 
-    # Prüfen, ob ein Alarm in der Zeit bis zum nächsten RTC Wakeup liegt
+    # Check if an alarm is within the period until the next RTC wakeup
     if [[ "$next_alarm_ts" -gt $now && "$next_alarm_ts" -lt $wake_ts ]]; then
         adjusted_wake_ts=$((next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60)))
         log "Alarm found before RTC wakeup. Adjusting wake time to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
-    # RTC Wakeup auf die berechnete Zeit setzen
+    # Set RTC wakeup to the calculated time
     if ! echo "$wake_ts" > "$WAKE_TIMESTAMP_FILE"; then
         log "[ERROR] Failed to write to wake timestamp file."
         exit 1
@@ -135,7 +138,7 @@ set_rtc_wakeup() {
 
     log "RTC wakeup set to $(date -d @$wake_ts)"
 
-    # RTC wakealarm und timestamp datei abgleichen
+    # Check if RTC wakealarm and timestamp file match
     rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
         log "RTC wakealarm and timestamp file match: $wake_ts"
@@ -144,6 +147,7 @@ set_rtc_wakeup() {
     fi
 }
 
+# Get the time of the next alarm
 get_next_alarm_time() {
     alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
@@ -155,6 +159,7 @@ get_next_alarm_time() {
     echo "$alarm_time"
 }
 
+# Wait for internet connectivity
 wait_for_internet() {
     log "Waiting up to $MAX_WAIT seconds for internet..."
     for ((i=0; i<MAX_WAIT; i++)); do
@@ -175,6 +180,7 @@ wait_for_internet() {
     return 1
 }
 
+# Monitor notifications and handle them based on the mode
 monitor_notifications() {
     local whitelist=($APP_WHITELIST)
 
