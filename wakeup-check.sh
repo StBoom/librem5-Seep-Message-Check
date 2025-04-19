@@ -120,11 +120,6 @@ set_rtc_wakeup() {
     # Get the next alarm time
     next_alarm_ts=$(get_next_alarm_time)
 
-    if [[ -z "$next_alarm_ts" || ! "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
-        log "No upcoming alarm found – fallback to quiet end."
-        next_alarm_ts=$(( quiet_end_ts + 1 ))
-    fi
-
     # Set RTC wakeup time (before next alarm or after quiet hours)
     if is_quiet_hours; then
         log "Currently in quiet hours."
