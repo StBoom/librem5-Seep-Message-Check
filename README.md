@@ -69,6 +69,7 @@ Make sure that the log file and timestamp file have the correct permissions for 
 sudo touch /var/log/wakeup-check.log
 sudo chmod 666 /var/log/wakeup-check.log
 
+sudo mkdir /var/lib/wakeup-check
 sudo touch /var/lib/wakeup-check/last_wake_timestamp
 sudo chmod 666 /var/lib/wakeup-check/last_wake_timestamp
 ```
