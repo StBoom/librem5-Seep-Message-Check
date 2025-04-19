@@ -1,11 +1,10 @@
 [Unit]
-Description=Wakeup Check after Resume
-After=suspend.target
+Description=Wakeup Check Post Suspend
+After=sleep.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh post
-User=root
 
 [Install]
-WantedBy=suspend.target
+WantedBy=sleep.target
