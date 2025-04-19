@@ -95,10 +95,15 @@ set_rtc_wakeup() {
     now=$(date +%s)
 
     # Calculate the end of quiet hours
-    if [[ "$QUIET_HOURS_START" < "$QUIET_HOURS_END" ]]; then
-        quiet_end_ts=$(date -d "today $QUIET_HOURS_END" +%s)
-    else
+    today=$(date +%Y-%m-%d)
+    start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
+    end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
+
+    if [[ "$end_ts" -le "$start_ts" ]]; then
+        # quiet hours end is on the next day
         quiet_end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
+    else
+        quiet_end_ts=$end_ts
     fi
 
     # Get the next alarm time
