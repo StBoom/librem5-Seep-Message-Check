@@ -1,96 +1,130 @@
-Complete Summary of the Script Functions:
+# Wakeup Check Configuration and Script
 
-    RTC Wake Functionality:
+This project provides a system that checks whether the computer has woken up from suspend or hibernation, and handles certain tasks based on the wake-up event. These tasks include displaying notifications, adjusting the RTC (Real-Time Clock) wake-up, and ensuring the system is ready for further use.
 
-        set_rtc_wakeup:
-        Schedules the next RTC wake-up by setting the RTC alarm to go off in a specified interval (NEXT_RTC_WAKE_MIN), which is read from the configuration file. It writes the wake time to the WAKE_TIMESTAMP_FILE.
+## Files Overview
 
-        is_rtc_wakeup:
-        Checks if the current wake-up is from an RTC alarm. It compares the time stored in WAKE_TIMESTAMP_FILE with the current time and ensures that the time difference is within a valid RTC wake-up window (RTC_WAKE_WINDOW_SECONDS).
+### 1. **wakeup-check.sh** (Script)
 
-    Display Control:
+This script is responsible for performing the wake-up check after the system wakes up from suspend or hibernation. It handles tasks such as setting the RTC wake-up time, managing notifications, and controlling the display.
 
-        turn_off_display:
-        Turns off the display using the gdbus method for GNOME ScreenSaver, called with the SetActive method set to true.
+Key Functions:
+- **Turning off the display**: Ensures the display is turned off after wake-up to prevent it from remaining active unnecessarily.
+- **Handling notifications**: Monitors incoming notifications from whitelisted applications and manages how they are displayed or handled.
+- **Setting RTC wake-up time**: Determines when the system should wake up next based on quiet hours, the next alarm, or RTC wake time.
+- **Waiting for internet connection**: Waits for the internet connection to be available before proceeding with further actions.
 
-        turn_on_display:
-        Turns on the display by calling the SetActive method with false via gdbus.
+### 2. **wakeup-check.conf** (Configuration File)
 
-    Notification Handling:
+This is the configuration file for the script `wakeup-check.sh`. It contains various settings such as:
+- **Log file path**: Defines where logs are saved.
+- **User settings**: Specifies the user under which the script should run and the necessary UID for DBus.
+- **Internet connection settings**: Configures the server to ping to verify the internet connection.
+- **Notification settings**: Defines how notifications should behave, including notification timeouts and display preferences.
+- **RTC wake-up settings**: Configures wake-up time before the alarm, the window of time for RTC wake detection, and other alarm-related settings.
+- **Quiet hours settings**: Configures quiet hours during which notifications or certain actions might be suppressed.
+- **App whitelist**: Specifies which applications' notifications should be processed.
 
-        monitor_notifications:
-        Listens for incoming notifications using dbus-monitor. The script checks for notifications that come from relevant applications (based on NOTIFICATION_MODE). If the notification is deemed relevant (in "whitelist" mode or "all" mode), it can trigger the display to turn on and optionally use fbcli to notify the user. It checks for a specific notification timeout (NOTIFICATION_TIMEOUT).
+### 3. **wakeup-check-pre.service** (Systemd Pre-Suspend Unit)
 
-        use_fbcli:
-        If enabled in the config (NOTIFICATION_USE_FBCLI="true"), this function uses fbcli to trigger a visual notification.
+This **systemd service unit** ensures that the `wakeup-check.sh` script is executed before the system enters suspend mode. It allows tasks such as setting the RTC wake-up time to be handled before sleep occurs.
 
-    Internet Connectivity Check:
+Key Points:
+- The service runs in **oneshot** mode, meaning it only executes once.
+- It is triggered before the `sleep.target` to ensure tasks are completed before suspension.
+- The unit can be enabled to automatically run on suspend, or manually triggered.
 
-        wait_for_internet:
-        This function attempts to wait for an internet connection by checking the system's network connectivity status (nmcli networking connectivity). If a connection is not found, it falls back to using ping to verify whether the system can reach the configured PING_HOST (1.1.1.1 in this case). It will try for up to MAX_WAIT seconds as defined in the configuration.
+### 4. **wakeup-check-post.service** (Systemd Post-Suspend Unit)
 
-    Quiet Hours Check:
+This **systemd service unit** ensures that the `wakeup-check.sh` script is executed after the system wakes up from suspend mode. It performs tasks such as checking for RTC wake-up, managing notifications, and verifying the internet connection.
 
-        is_quiet_hours:
-        This function checks if the current time falls within the defined quiet hours. The quiet hours start and end times are configurable via the QUIET_HOURS_START and QUIET_HOURS_END parameters. If the current time is within the quiet hours, certain actions (such as waking up from suspend) can be suppressed.
+Key Points:
+- The service runs in **oneshot** mode, meaning it only executes once.
+- It is triggered after the `suspend.target`, meaning it only runs after the system wakes up.
+- The unit can be enabled to automatically run after wake-up, or manually triggered.
 
-    Logging:
+## Installation
 
-        log:
-        This is a general-purpose logging function that logs messages to a file (LOGFILE) with timestamps. It is used throughout the script to track actions and events.
+### 1. Copy Files to Appropriate Locations
 
-    Main Logic (Mode Handling):
+To install the `wakeup-check` system, copy the files to their respective locations:
 
-        Pre Mode (pre):
-        In the pre mode, the script schedules an RTC wake-up time by calling set_rtc_wakeup and then suspends the system (systemctl suspend).
+- **Script**: Copy `wakeup-check.sh` to `/usr/local/bin/`.
+- **Configuration**: Copy `wakeup-check.conf` to `/etc/`.
+- **Systemd Unit Files**: Copy `wakeup-check-pre.service` and `wakeup-check-post.service` to `/etc/systemd/system/`.
 
-        Post Mode (post):
-        In the post mode, the script checks if the system was awakened by the RTC alarm (is_rtc_wakeup). If true, it checks if the current time is within quiet hours (is_quiet_hours). If not in quiet hours, it waits for internet connectivity (wait_for_internet). If the internet is available, it begins monitoring notifications (monitor_notifications). If relevant notifications are found, the system stays awake; otherwise, it suspends again. If no internet is detected, the system suspends again without checking notifications.
+### 2. Set Correct Permissions for the Script
 
+Ensure that the script has the correct permissions to be executed:
 
-Permissions
-
-To ensure that everything works smoothly, the following permissions need to be set for the relevant files:
-
-    Permissions for the script /usr/local/bin/wakeup-check.sh:
-
-        The script needs to be executable by the user running it (typically root or a privileged user). Set the execute permission for all users.
-
+```bash
 sudo chmod +x /usr/local/bin/wakeup-check.sh
+```
 
-Permissions for the configuration file /etc/wakeup-check.conf:
+### 3. Set Correct Permissions for the Log and Timestamp Files
 
-    The configuration file must be readable by the user running the script (again, typically root or a privileged user). You can set the following permissions:
+Make sure that the log file and timestamp file have the correct permissions for the script to write to:
 
-sudo chmod 644 /etc/wakeup-check.conf
-
-This allows the root user to read and write to the file, while others can only read it.
-
-Permissions for the log file /var/log/wakeup-check.log:
-
-    The log file must be writeable by the user executing the script. Set the following permissions (if the file doesn’t exist, ensure it’s created):
-
+```bash
 sudo touch /var/log/wakeup-check.log
 sudo chmod 666 /var/log/wakeup-check.log
 
-Permissions for the RTC wake-up control (/sys/class/rtc/rtc0/wakealarm):
+sudo touch /var/lib/wakeup-check/last_wake_timestamp
+sudo chmod 666 /var/lib/wakeup-check/last_wake_timestamp
+```
 
-    The script writes to /sys/class/rtc/rtc0/wakealarm to schedule the RTC wake-up. Ensure that the user running the script has write permissions to this file. Typically, this file is owned by root, but it should be fine if the script is run with elevated privileges (e.g., via sudo).
+### 4. Reload Systemd
 
-    sudo chmod 666 /sys/class/rtc/rtc0/wakealarm
+Once the unit files are in place, reload systemd to recognize the new services:
 
-Enabling and Starting the Unit Files
-
-After creating the unit files, you need to reload the systemd manager to recognize the new services, enable them, and start them.
-
+```bash
 sudo systemctl daemon-reload
+```
+
+### 5. Enable and Start the Services
+
+Enable and start the services to ensure they automatically run on suspend and wake events:
+
+```bash
 sudo systemctl enable wakeup-check-pre.service
 sudo systemctl enable wakeup-check-post.service
 sudo systemctl start wakeup-check-pre.service
 sudo systemctl start wakeup-check-post.service
+```
 
-    daemon-reload: Reloads systemd to recognize new or modified unit files.
+### 6. Customize Configuration
 
-    enable: Enables the services to start automatically on boot or when triggered.
+Edit the wakeup-check.conf file to adjust the settings to your preference. The key configuration options you can modify are:
 
-    start: Starts the services immediately.
+    TARGET_USER: Set this to your actual username for user-specific settings.
+
+    NOTIFICATION_MODE: Defines which notifications are handled. You can set it to all or define a specific whitelist of applications.
+
+    RTC wake-up time and window: Configure how long the system should wait before waking up and the window of time for RTC wake detection.
+
+    Quiet hours: Customize the hours during which the system suppresses notifications.
+
+After editing the configuration file, save the changes.
+### Explanation
+
+    wakeup-check.sh: This script handles the wake-up checks. It checks if the wake-up event was RTC-based, sets the RTC alarm, monitors notifications, and turns the display on or off based on the settings in the configuration file.
+
+    wakeup-check.conf: The configuration file for the script, where various settings like notification preferences, alarm times, and RTC wake settings are defined.
+
+    Systemd Unit Files: The two unit files manage the execution of the script during pre-suspend and post-suspend events. These files make sure the script is triggered at the correct moments (before the system suspends and after it wakes up).
+
+#### Pre-Suspend (wakeup-check-pre.service)
+
+This unit is triggered before the system enters suspend mode. It executes the wakeup-check.sh pre command, ensuring that the RTC wake-up time is set and any necessary tasks are performed before the system goes into suspend.
+#### Post-Suspend (wakeup-check-post.service)
+
+This unit is triggered after the system has woken up from suspend mode. It executes the wakeup-check.sh post command, checking for RTC wake events, managing notifications, and verifying that the system is ready to proceed (including internet connectivity).
+### Troubleshooting
+
+If you experience issues with the system, the logs can help you diagnose the problem:
+
+```bash
+tail -f /var/log/wakeup-check.log
+```
+
+This will show real-time logs from the script. Check for any error messages related to file permissions, RTC wake-up, or systemd unit failures.
