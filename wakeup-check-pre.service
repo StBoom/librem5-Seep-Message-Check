@@ -1,12 +1,12 @@
+# /etc/systemd/system/wakeup-check-pre.service
 [Unit]
-Description=Wakeup Check - Pre Suspend
-DefaultDependencies=no
-Before=suspend.target
-Wants=suspend.target
+Description=Wakeup Check Pre Suspend
+Before=sleep.target
+StopWhenUnneeded=true
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
 
 [Install]
-WantedBy=suspend.target
+WantedBy=sleep.target
