@@ -51,11 +51,22 @@ is_quiet_hours() {
     now_seconds=$(date +%s)
     today=$(date +%Y-%m-%d)
     start_seconds=$(date -d "$today $QUIET_HOURS_START" +%s)
-    end_seconds=$(date -d "$today $QUIET_HOURS_END" +%s)
 
+    # Wenn die Endzeit vor der Startzeit ist, dann handelt es sich um eine Ruhezeit, die über Mitternacht geht
+    if [[ "$QUIET_HOURS_START" > "$QUIET_HOURS_END" ]]; then
+        # Endzeit auf den nächsten Tag setzen
+        end_seconds=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
+    else
+        # Endzeit am gleichen Tag
+        end_seconds=$(date -d "$today $QUIET_HOURS_END" +%s)
+    fi
+
+    # Überprüfen, ob die aktuelle Zeit innerhalb des Zeitfensters liegt
     if [[ "$start_seconds" -lt "$end_seconds" ]]; then
+        # Ruhezeit am selben Tag
         result=$(( now_seconds >= start_seconds && now_seconds < end_seconds ))
     else
+        # Ruhezeit geht über Mitternacht
         result=$(( now_seconds >= start_seconds || now_seconds < end_seconds ))
     fi
 
