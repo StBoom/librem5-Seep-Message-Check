@@ -5,7 +5,7 @@
 # Define paths
 SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
-WAKE_TIMESTAMP_FILE="/var/lib/wakeup-timestamp"
+WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 
 # Ensure the script has the correct permissions
 echo "Setting executable permissions for $SCRIPT_PATH..."
