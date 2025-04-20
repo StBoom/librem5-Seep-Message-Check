@@ -1,96 +1,67 @@
 #!/bin/bash
 
-# Installation directory
-REPO_DIR="$(pwd)"
+# Installer for Wakeup Check Service
 
-# Target directories
-BIN_DIR="/usr/local/bin"
-SERVICE_DIR="/etc/systemd/system"
-CONF_DIR="/etc"
-WAKEUP_CHECK_SCRIPT="wakeup-check.sh"
-SERVICE_FILE_PRE="wakeup-check-pre.service"
-SERVICE_FILE_POST="wakeup-check-post.service"
-CONF_FILE="wakeup-check.conf"
-LOG_DIR="/var/log/wakeup-check"
-WAKE_TIMESTAMP_FILE="$LOG_DIR/wake_timestamp"
-LOG_FILE="$LOG_DIR/wakeup-check.log"
+# Define paths
+SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
+LOG_FILE="/var/log/wakeup-check.log"
+WAKE_TIMESTAMP_FILE="/var/lib/wakeup-timestamp"
 
-# Helper function: Log message
-log() {
-    echo "[INFO] $1"
-}
+# Ensure the script has the correct permissions
+echo "Setting executable permissions for $SCRIPT_PATH..."
+chmod +x $SCRIPT_PATH
 
-# Check if script is being run as root
-if [[ $EUID -ne 0 ]]; then
-    echo "[ERROR] This script must be run as root!" 
-    exit 1
-fi
+# Copy the wakeup-check.sh script to /usr/local/bin
+echo "Copying wakeup-check.sh to $SCRIPT_PATH..."
+cp wakeup-check.sh $SCRIPT_PATH
 
-# 1. Copy the main script to the target directory
-log "Copying $WAKEUP_CHECK_SCRIPT to $BIN_DIR"
-cp "$REPO_DIR/$WAKEUP_CHECK_SCRIPT" "$BIN_DIR/$WAKEUP_CHECK_SCRIPT"
+# Create necessary directories and files if they do not exist
+echo "Creating necessary directories and files..."
 
-# 2. Copy the systemd service files
-log "Copying $SERVICE_FILE_PRE and $SERVICE_FILE_POST to $SERVICE_DIR"
-cp "$REPO_DIR/$SERVICE_FILE_PRE" "$SERVICE_DIR/$SERVICE_FILE_PRE"
-cp "$REPO_DIR/$SERVICE_FILE_POST" "$SERVICE_DIR/$SERVICE_FILE_POST"
-
-# 3. Copy the configuration file
-log "Copying $CONF_FILE to $CONF_DIR"
-cp "$REPO_DIR/$CONF_FILE" "$CONF_DIR/$CONF_FILE"
-
-# 4. Set executable permissions for the main script
-log "Setting executable permissions for $WAKEUP_CHECK_SCRIPT"
-chmod +x "$BIN_DIR/$WAKEUP_CHECK_SCRIPT"
-
-# 5. Set appropriate permissions for the systemd service files
-log "Setting appropriate permissions for the systemd service files"
-chmod 644 "$SERVICE_DIR/$SERVICE_FILE_PRE"
-chmod 644 "$SERVICE_DIR/$SERVICE_FILE_POST"
-
-# 6. Create the log directory if it doesn't exist
-log "Creating log directory if it doesn't exist"
-mkdir -p "$LOG_DIR"
-
-# 7. Create the log file if it doesn't exist
-log "Creating log file if it doesn't exist"
+# Log file
 if [ ! -f "$LOG_FILE" ]; then
-    touch "$LOG_FILE"
-    log "Log file created: $LOG_FILE"
+    touch $LOG_FILE
+    chmod 644 $LOG_FILE
+    echo "Log file created at $LOG_FILE with 644 permissions."
 else
-    log "Log file already exists."
+    echo "Log file already exists."
 fi
 
-# 8. Set the correct permissions for the log file
-log "Setting correct permissions for the log file"
-chmod 640 "$LOG_FILE"  # Root (write) + Group (read)
-
-# 9. Create the timestamp file if it doesn't exist
-log "Creating the timestamp file if it doesn't exist"
+# Wake timestamp file
 if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
-    touch "$WAKE_TIMESTAMP_FILE"
-    log "Timestamp file created: $WAKE_TIMESTAMP_FILE"
+    touch $WAKE_TIMESTAMP_FILE
+    chmod 644 $WAKE_TIMESTAMP_FILE
+    echo "Timestamp file created at $WAKE_TIMESTAMP_FILE with 644 permissions."
 else
-    log "Timestamp file already exists."
+    echo "Timestamp file already exists."
 fi
 
-# 10. Set the correct permissions for the timestamp file
-log "Setting correct permissions for the timestamp file"
-chmod 640 "$WAKE_TIMESTAMP_FILE"  # Root (write) + Group (read)
+# Set the correct permissions for the script and the config
+chmod 755 $SCRIPT_PATH
+chmod 644 $LOG_FILE
+chmod 644 $WAKE_TIMESTAMP_FILE
 
-# 11. Enable the systemd services
-log "Enabling systemd services: $SERVICE_FILE_PRE and $SERVICE_FILE_POST"
-systemctl enable "$SERVICE_DIR/$SERVICE_FILE_PRE"
-systemctl enable "$SERVICE_DIR/$SERVICE_FILE_POST"
+# Install systemd service files
+echo "Installing systemd service files..."
 
-# 12. Start the systemd services
-log "Starting systemd services: $SERVICE_FILE_PRE and $SERVICE_FILE_POST"
-systemctl start wakeup-check-pre.service
-systemctl start wakeup-check-post.service
+# Copy the pre-suspend service
+cp wakeup-check-pre.service /etc/systemd/system/
 
-# 13. Verify if the services are running
-log "Checking the status of the systemd services"
-systemctl status wakeup-check-pre.service
-systemctl status wakeup-check-post.service
+# Copy the post-suspend service
+cp wakeup-check-post.service /etc/systemd/system/
 
-log "Installation completed!"
+# Set permissions for the systemd service files
+chmod 644 /etc/systemd/system/wakeup-check-pre.service
+chmod 644 /etc/systemd/system/wakeup-check-post.service
+
+# Reload systemd to register the new services
+echo "Reloading systemd..."
+systemctl daemon-reload
+
+# Enable services to start on boot
+echo "Enabling systemd services..."
+systemctl enable wakeup-check-pre.service
+systemctl enable wakeup-check-post.service
+
+# Print the completion message
+echo "Installation complete. The services have been installed and enabled."
