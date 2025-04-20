@@ -43,7 +43,16 @@ Key Points:
 - It is triggered after the `suspend.target`, meaning it only runs after the system wakes up.
 - The unit can be enabled to automatically run after wake-up, or manually triggered.
 
-## Installation
+
+## installation script
+
+
+```bash
+git clone https://github.com/StBoom/librem5-Seep-Message-Check.git
+sudo bash install.sh
+```
+
+## Manual installation
 
 ### 1. Copy Files to Appropriate Locations
 
