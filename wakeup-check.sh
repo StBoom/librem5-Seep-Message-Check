@@ -48,29 +48,27 @@ use_fbcli() {
 
 # Check if the current time is within quiet hours
 is_quiet_hours() {
-    now_seconds=$(date +%s)
-    today=$(date +%Y-%m-%d)
-    start_seconds=$(date -d "$today $QUIET_HOURS_START" +%s)
+    local now_seconds=$(date +%s)
+    local today=$(date +%Y-%m-%d)
 
-    # Wenn die Endzeit vor der Startzeit ist, dann handelt es sich um eine Ruhezeit, die über Mitternacht geht
-    if [[ "$QUIET_HOURS_START" > "$QUIET_HOURS_END" ]]; then
-        # Endzeit auf den nächsten Tag setzen
-        end_seconds=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
-    else
-        # Endzeit am gleichen Tag
+    local start_seconds=$(date -d "$today $QUIET_HOURS_START" +%s)
+    local end_seconds
+
+    if [[ "$QUIET_HOURS_START" < "$QUIET_HOURS_END" ]]; then
+        # Ruhezeit am selben Tag (z. B. 22:00–23:00)
         end_seconds=$(date -d "$today $QUIET_HOURS_END" +%s)
-    fi
-
-    # Überprüfen, ob die aktuelle Zeit innerhalb des Zeitfensters liegt
-    if [[ "$start_seconds" -lt "$end_seconds" ]]; then
-        # Ruhezeit am selben Tag
-        result=$(( now_seconds >= start_seconds && now_seconds < end_seconds ))
+        [[ $now_seconds -ge $start_seconds && $now_seconds -lt $end_seconds ]]
     else
-        # Ruhezeit geht über Mitternacht
-        result=$(( now_seconds >= start_seconds || now_seconds < end_seconds ))
+        # Ruhezeit über Mitternacht (z. B. 23:00–06:00)
+        end_seconds=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
+        if [[ $now_seconds -ge $start_seconds ]]; then
+            return 0
+        fi
+        if [[ $now_seconds -lt $end_seconds ]]; then
+            return 0
+        fi
+        return 1
     fi
-
-    return $result
 }
 
 # Check if the wake was triggered by RTC
