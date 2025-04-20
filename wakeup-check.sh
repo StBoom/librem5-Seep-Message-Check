@@ -48,25 +48,28 @@ use_fbcli() {
 
 # Check if the current time is within quiet hours
 is_quiet_hours() {
-    local now_seconds=$(date +%s)
-    local today=$(date +%Y-%m-%d)
+    local test_time="$1"
+    local now
 
-    local start_seconds=$(date -d "$today $QUIET_HOURS_START" +%s)
-    local end_seconds
-
-    if [[ "$QUIET_HOURS_START" < "$QUIET_HOURS_END" ]]; then
-        # Ruhezeit am selben Tag (z. B. 22:00–23:00)
-        end_seconds=$(date -d "$today $QUIET_HOURS_END" +%s)
-        [[ $now_seconds -ge $start_seconds && $now_seconds -lt $end_seconds ]]
+    if [[ -n "$test_time" ]]; then
+        now=$(date -d "$test_time" +%s)
     else
-        # Ruhezeit über Mitternacht (z. B. 23:00–06:00)
-        end_seconds=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
-        if [[ $now_seconds -ge $start_seconds ]]; then
-            return 0
-        fi
-        if [[ $now_seconds -lt $end_seconds ]]; then
-            return 0
-        fi
+        now=$(date +%s)
+    fi
+
+    local today=$(date +%Y-%m-%d)
+    local start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
+    local end_ts
+
+    if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
+        end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
+    else
+        end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
+    fi
+
+    if (( now >= start_ts && now < end_ts )); then
+        return 0
+    else
         return 1
     fi
 }
@@ -100,59 +103,71 @@ is_rtc_wakeup() {
 
 # Set the RTC wakeup time based on quiet hours and alarms
 set_rtc_wakeup() {
-    local now wake_ts quiet_end_ts next_alarm_ts adjusted_wake_ts
-    now=$(date +%s)
+    local now=$(date +%s)
+    local today=$(date +%Y-%m-%d)
+    local start_ts end_ts quiet_end_ts
+    local next_alarm_ts adjusted_wake_ts wake_ts
 
-    # Calculate the end of quiet hours
-    today=$(date +%Y-%m-%d)
+    log "=== Setting RTC Wakeup ==="
+    log "Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+
+    # Berechne Start- und Endzeit der Ruhezeit
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
-    end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
 
-    if [[ "$end_ts" -le "$start_ts" ]]; then
-        # quiet hours end is on the next day
-        quiet_end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
+    if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
+        end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
     else
-        quiet_end_ts=$end_ts
+        end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
     fi
 
-    # Get the next alarm time
-    next_alarm_ts=$(get_next_alarm_time)
+    quiet_end_ts=$end_ts
+    log "Quiet hours start: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S')"
+    log "Quiet hours end:   $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
-    # Set RTC wakeup time (before next alarm or after quiet hours)
+    # Hole nächste Alarmzeit
+    next_alarm_ts=$(get_next_alarm_time)
+    if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
+        log "Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
+    else
+        log "No valid alarm found – skipping alarm adjustment"
+        next_alarm_ts=""
+    fi
+
+    # Bestimme Basis-Wake-Zeit
     if is_quiet_hours; then
-        log "Currently in quiet hours."
+        log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "No alarm during quiet hours. Setting RTC wakeup for end of quiet hours: $(date -d @$wake_ts)"
+        log "Setting wake time to end of quiet hours: $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        log "Not in quiet hours. Setting RTC wakeup for $(date -d @$wake_ts)"
+        log "Not in quiet hours – setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
-    # Check if an alarm is within the period until the next RTC wakeup
-    if [[ "$next_alarm_ts" -gt $now && "$next_alarm_ts" -lt $wake_ts ]]; then
-        adjusted_wake_ts=$((next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60)))
-        log "Alarm found before RTC wakeup. Adjusting wake time to: $(date -d @$adjusted_wake_ts)"
+    # Passe an, falls ein Alarm früher liegt
+    if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
+        adjusted_wake_ts=$(( next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60) ))
+        log "Alarm is earlier than current wake time – adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
-    # Set RTC wakeup to the calculated time
+    # RTC Wake setzen
     if ! echo "$wake_ts" > "$WAKE_TIMESTAMP_FILE"; then
-        log "[ERROR] Failed to write to wake timestamp file."
+        log "[ERROR] Failed to write timestamp file: $WAKE_TIMESTAMP_FILE"
         exit 1
     fi
+
     if ! echo 0 > /sys/class/rtc/rtc0/wakealarm 2>/dev/null || ! echo "$wake_ts" > /sys/class/rtc/rtc0/wakealarm 2>/dev/null; then
-        log "[ERROR] Failed to set RTC wake alarm."
+        log "[ERROR] Failed to set RTC wakealarm"
         exit 1
     fi
 
-    log "RTC wakeup set to $(date -d @$wake_ts)"
+    log "RTC wakealarm set to: $(date -d @$wake_ts)"
 
-    # Check if RTC wakealarm and timestamp file match
-    rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
+    local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
-        log "RTC wakealarm and timestamp file match: $wake_ts"
+        log "RTC wakealarm and saved timestamp match ✔️"
     else
-        log "[WARNING] Mismatch: RTC wakealarm=$rtc_actual, timestamp file=$wake_ts"
+        log "[WARNING] RTC wakealarm mismatch – actual: $rtc_actual, expected: $wake_ts"
     fi
 }
 
