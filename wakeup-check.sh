@@ -77,7 +77,7 @@ is_quiet_hours() {
 # Check if the wake was triggered by RTC
 is_rtc_wakeup() {
     if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
-        log "No wake timestamp file found – not an RTC wake."
+        log "No wake timestamp file found - not an RTC wake."
         return 1
     fi
 
@@ -129,7 +129,7 @@ set_rtc_wakeup() {
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
         log "Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
     else
-        log "No valid alarm found – skipping alarm adjustment"
+        log "No valid alarm found - skipping alarm adjustment"
         next_alarm_ts=""
     fi
 
@@ -140,13 +140,13 @@ set_rtc_wakeup() {
         log "Setting wake time to end of quiet hours: $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        log "Not in quiet hours – setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
+        log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
     # Passe an, falls ein Alarm früher liegt
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
         adjusted_wake_ts=$(( next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60) ))
-        log "Alarm is earlier than current wake time – adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
+        log "Alarm is earlier than current wake time - adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
@@ -167,7 +167,7 @@ set_rtc_wakeup() {
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
         log "RTC wakealarm and saved timestamp match ✔️"
     else
-        log "[WARNING] RTC wakealarm mismatch – actual: $rtc_actual, expected: $wake_ts"
+        log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
     fi
 }
 
@@ -196,7 +196,7 @@ wait_for_internet() {
     done
 
     if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null; then
-        log "Ping successful – internet likely available"
+        log "Ping successful - internet likely available"
         return 0
     fi
 
@@ -268,32 +268,32 @@ if [[ "$MODE" == "post" ]]; then
         log "RTC wake detected."
 
         if is_quiet_hours; then
-            log "Currently in quiet hours – set rtc wakeup (after quiet hours)"
+            log "Currently in quiet hours - set rtc wakeup (after quiet hours)"
             systemctl suspend
             exit 0
         fi
 
         if wait_for_internet; then
-            log "Internet OK – monitoring notifications..."
+            log "Internet OK - monitoring notifications..."
             TMP_NOTIFY_FILE=$(mktemp)
             (monitor_notifications > "$TMP_NOTIFY_FILE") &
             MONITOR_PID=$!
             sleep "$NOTIFICATION_TIMEOUT"
             wait $MONITOR_PID
             if grep -q "NOTIFIED" "$TMP_NOTIFY_FILE"; then
-                log "Relevant notification found – staying awake."
+                log "Relevant notification found - staying awake."
             else
-                log "No relevant notification – suspending again."
+                log "No relevant notification - suspending again."
                 systemctl suspend
             fi
             rm -f "$TMP_NOTIFY_FILE"
         else
-            log "No internet – suspending."
+            log "No internet - suspending."
             systemctl suspend
         fi
     else
         turn_on_display
-        log "Not an RTC wake – system stays awake. Turn display on"
+        log "Not an RTC wake - system stays awake. Turn display on"
     fi
     log "===== wakeup-check.sh finished ====="
     exit 0
