@@ -252,10 +252,11 @@ monitor_notifications_alt() {
 monitor_notifications() {
     local whitelist=($APP_WHITELIST)
 
+    log "Internet OK - monitoring notifications..."
+
     timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
     dbus-monitor "interface='org.freedesktop.Notifications'" |
     while read -r line; do
-        # Log the raw line from dbus-monitor for debugging purposes
         log "Full DBus Monitor Output: $line"
 
         if echo "$line" | grep -q "member=Notify"; then
@@ -264,26 +265,24 @@ monitor_notifications() {
                 read -r next && buffer+="$next"$'\n'
             done
 
-            # Debugging output: Log the full buffer to ensure we're capturing the full notification
             log "Raw Notification Buffer:\n$buffer"
 
-            # Extract the application name, summary (title), and body (message)
-            app=$(echo "$buffer" | grep -oP 'string "\K[^"]+' | head -1 | tr '[:upper:]' '[:lower:]')
-            summary=$(echo "$buffer" | grep -oP 'string "\K[^"]+' | sed -n '3p')
-            body=$(echo "$buffer" | grep -oP 'string "\K[^"]+' | sed -n '4p')
+            # Extract strings from buffer
+            strings=($(echo "$buffer" | grep -oP 'string "\K[^"]+'))
+            log "Found ${#strings[@]} strings in buffer: ${strings[*]}"
 
-            # Log the extracted values for debugging purposes
+            app="${strings[0]}"
+            summary="${strings[3]}"
+            body="${strings[4]}"
+
+            app=$(echo "$app" | tr '[:upper:]' '[:lower:]')
+
             log "Notification received from: $app"
             log "Title: $summary"
             log "Message: $body"
 
-            # If title or body are empty, log a warning
-            if [[ -z "$summary" ]]; then
-                log "[WARNING] Title is empty!"
-            fi
-            if [[ -z "$body" ]]; then
-                log "[WARNING] Message is empty!"
-            fi
+            [[ -z "$summary" ]] && log "[WARNING] Title is empty!"
+            [[ -z "$body" ]] && log "[WARNING] Message is empty!"
 
             local is_relevant=0
             if [[ "$NOTIFICATION_MODE" == "all" ]]; then
@@ -301,6 +300,7 @@ monitor_notifications() {
                 if [ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]; then
                     turn_on_display
                 fi
+                log "Using fbcli for notification"
                 use_fbcli
                 echo "NOTIFIED"
                 return 0
