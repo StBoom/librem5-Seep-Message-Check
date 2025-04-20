@@ -7,6 +7,8 @@ StopWhenUnneeded=true
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
+ExecStartPost=/bin/sleep 1s   # Füge eine kleine Verzögerung hinzu, um sicherzustellen, dass der RTC-Wecker richtig gesetzt wurde
+ExecStartPost=/usr/bin/systemctl suspend   # Starte den Suspend explizit
 
 [Install]
 WantedBy=sleep.target
