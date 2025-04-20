@@ -24,6 +24,15 @@ fi
 # Create necessary directories and files if they do not exist
 echo "Creating necessary directories and files..."
 
+# Ensure the directory for the timestamp file exists
+if [ ! -d "/var/lib/wakeup-check" ]; then
+    echo "Creating directory /var/lib/wakeup-check..."
+    mkdir -p /var/lib/wakeup-check
+    chmod 755 /var/lib/wakeup-check
+else
+    echo "Directory /var/lib/wakeup-check already exists."
+fi
+
 # Log file
 if [ ! -f "$LOG_FILE" ]; then
     touch $LOG_FILE
@@ -74,4 +83,8 @@ systemctl daemon-reload
 
 # Enable services to start on boot
 echo "Enabling systemd services..."
-systemctl enable wake
+systemctl enable wakeup-check-pre.service
+systemctl enable wakeup-check-post.service
+
+# Print the completion message
+echo "Installation complete. The services have been installed and enabled."
