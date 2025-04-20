@@ -62,25 +62,33 @@ To install the `wakeup-check` system, copy the files to their respective locatio
 - **Configuration**: Copy `wakeup-check.conf` to `/etc/`.
 - **Systemd Unit Files**: Copy `wakeup-check-pre.service` and `wakeup-check-post.service` to `/etc/systemd/system/`.
 
+```bash
+cp wakeup-check.sh /usr/local/bin/
+cp wakeup-check.conf /etc/
+cp wakeup-check-pre.service /etc/systemd/system/
+cp wakeup-check-post.service /etc/systemd/system/
+```
+
 ### 2. Set Correct Permissions for the Script
 
 Ensure that the script has the correct permissions to be executed:
 
 ```bash
 sudo chmod +x /usr/local/bin/wakeup-check.sh
+sudo chmod 755 /usr/local/bin/wakeup-check.sh
 ```
 
-### 3. Set Correct Permissions for the Log and Timestamp Files
+### 3. Create and set Correct Permissions for the Log and Timestamp Files
 
 Make sure that the log file and timestamp file have the correct permissions for the script to write to:
 
 ```bash
 sudo touch /var/log/wakeup-check.log
-sudo chmod 666 /var/log/wakeup-check.log
+sudo chmod 640 /var/log/wakeup-check.log
 
 sudo mkdir /var/lib/wakeup-check
 sudo touch /var/lib/wakeup-check/last_wake_timestamp
-sudo chmod 666 /var/lib/wakeup-check/last_wake_timestamp
+sudo chmod 640 /var/lib/wakeup-check/last_wake_timestamp
 ```
 
 ### 4. Reload Systemd
