@@ -1,90 +1,96 @@
 #!/bin/bash
 
-# Installationsverzeichnis
+# Installation directory
 REPO_DIR="$(pwd)"
 
-# Zielverzeichnisse
+# Target directories
 BIN_DIR="/usr/local/bin"
 SERVICE_DIR="/etc/systemd/system"
 CONF_DIR="/etc"
 WAKEUP_CHECK_SCRIPT="wakeup-check.sh"
-SERVICE_FILE="wakeup-check-pre.service"
+SERVICE_FILE_PRE="wakeup-check-pre.service"
+SERVICE_FILE_POST="wakeup-check-post.service"
 CONF_FILE="wakeup-check.conf"
 LOG_DIR="/var/log/wakeup-check"
 WAKE_TIMESTAMP_FILE="$LOG_DIR/wake_timestamp"
 LOG_FILE="$LOG_DIR/wakeup-check.log"
 
-# Hilfsfunktion: Log-Nachricht
+# Helper function: Log message
 log() {
     echo "[INFO] $1"
 }
 
-# Prüfen, ob das Skript mit root-Rechten ausgeführt wird
+# Check if script is being run as root
 if [[ $EUID -ne 0 ]]; then
-    echo "[ERROR] Dieses Skript muss als root ausgeführt werden!" 
+    echo "[ERROR] This script must be run as root!" 
     exit 1
 fi
 
-# 1. Kopiere das Haupt-Skript in das Zielverzeichnis
-log "Kopiere $WAKEUP_CHECK_SCRIPT nach $BIN_DIR"
+# 1. Copy the main script to the target directory
+log "Copying $WAKEUP_CHECK_SCRIPT to $BIN_DIR"
 cp "$REPO_DIR/$WAKEUP_CHECK_SCRIPT" "$BIN_DIR/$WAKEUP_CHECK_SCRIPT"
 
-# 2. Kopiere die systemd-Dienstdatei
-log "Kopiere $SERVICE_FILE nach $SERVICE_DIR"
-cp "$REPO_DIR/$SERVICE_FILE" "$SERVICE_DIR/$SERVICE_FILE"
+# 2. Copy the systemd service files
+log "Copying $SERVICE_FILE_PRE and $SERVICE_FILE_POST to $SERVICE_DIR"
+cp "$REPO_DIR/$SERVICE_FILE_PRE" "$SERVICE_DIR/$SERVICE_FILE_PRE"
+cp "$REPO_DIR/$SERVICE_FILE_POST" "$SERVICE_DIR/$SERVICE_FILE_POST"
 
-# 3. Kopiere die Konfigurationsdatei
-log "Kopiere $CONF_FILE nach $CONF_DIR"
+# 3. Copy the configuration file
+log "Copying $CONF_FILE to $CONF_DIR"
 cp "$REPO_DIR/$CONF_FILE" "$CONF_DIR/$CONF_FILE"
 
-# 4. Setze die richtigen Berechtigungen für das Skript
-log "Setze Ausführungsrechte für $WAKEUP_CHECK_SCRIPT"
+# 4. Set executable permissions for the main script
+log "Setting executable permissions for $WAKEUP_CHECK_SCRIPT"
 chmod +x "$BIN_DIR/$WAKEUP_CHECK_SCRIPT"
 
-# 5. Setze die richtigen Berechtigungen für die systemd-Dienstdatei
-log "Setze die richtigen Berechtigungen für den systemd-Dienst"
-chmod 644 "$SERVICE_DIR/$SERVICE_FILE"
+# 5. Set appropriate permissions for the systemd service files
+log "Setting appropriate permissions for the systemd service files"
+chmod 644 "$SERVICE_DIR/$SERVICE_FILE_PRE"
+chmod 644 "$SERVICE_DIR/$SERVICE_FILE_POST"
 
-# 6. Erstelle das Verzeichnis für Logs, falls es noch nicht existiert
-log "Erstelle Verzeichnis für Logs, falls noch nicht vorhanden"
+# 6. Create the log directory if it doesn't exist
+log "Creating log directory if it doesn't exist"
 mkdir -p "$LOG_DIR"
 
-# 7. Erstelle die Logdatei, falls sie noch nicht existiert
-log "Erstelle Logdatei, falls noch nicht vorhanden"
+# 7. Create the log file if it doesn't exist
+log "Creating log file if it doesn't exist"
 if [ ! -f "$LOG_FILE" ]; then
     touch "$LOG_FILE"
-    log "Logdatei erstellt: $LOG_FILE"
+    log "Log file created: $LOG_FILE"
 else
-    log "Logdatei existiert bereits."
+    log "Log file already exists."
 fi
 
-# 8. Setze die richtigen Berechtigungen für die Logdatei
-log "Setze die richtigen Berechtigungen für die Logdatei"
-chmod 640 "$LOG_FILE"  # Root (Schreibrecht) + Gruppe (Leserecht)
+# 8. Set the correct permissions for the log file
+log "Setting correct permissions for the log file"
+chmod 640 "$LOG_FILE"  # Root (write) + Group (read)
 
-# 9. Erstelle die Zeitstempel-Datei, falls sie nicht existiert
-log "Erstelle die Zeitstempel-Datei, falls sie noch nicht existiert"
+# 9. Create the timestamp file if it doesn't exist
+log "Creating the timestamp file if it doesn't exist"
 if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
     touch "$WAKE_TIMESTAMP_FILE"
-    log "Zeitstempel-Datei erstellt: $WAKE_TIMESTAMP_FILE"
+    log "Timestamp file created: $WAKE_TIMESTAMP_FILE"
 else
-    log "Zeitstempel-Datei existiert bereits."
+    log "Timestamp file already exists."
 fi
 
-# 10. Setze die richtigen Berechtigungen für die Zeitstempel-Datei
-log "Setze die richtigen Berechtigungen für die Zeitstempel-Datei"
-chmod 640 "$WAKE_TIMESTAMP_FILE"  # Root (Schreibrecht) + Gruppe (Leserecht)
+# 10. Set the correct permissions for the timestamp file
+log "Setting correct permissions for the timestamp file"
+chmod 640 "$WAKE_TIMESTAMP_FILE"  # Root (write) + Group (read)
 
-# 11. Systemd-Dienst aktivieren
-log "Aktiviere systemd-Dienst wakeup-check-pre.service"
-systemctl enable "$SERVICE_DIR/$SERVICE_FILE"
+# 11. Enable the systemd services
+log "Enabling systemd services: $SERVICE_FILE_PRE and $SERVICE_FILE_POST"
+systemctl enable "$SERVICE_DIR/$SERVICE_FILE_PRE"
+systemctl enable "$SERVICE_DIR/$SERVICE_FILE_POST"
 
-# 12. Starte den systemd-Dienst
-log "Starte den systemd-Dienst wakeup-check-pre.service"
+# 12. Start the systemd services
+log "Starting systemd services: $SERVICE_FILE_PRE and $SERVICE_FILE_POST"
 systemctl start wakeup-check-pre.service
+systemctl start wakeup-check-post.service
 
-# 13. Überprüfen, ob der Dienst läuft
-log "Überprüfe, ob der systemd-Dienst korrekt läuft"
+# 13. Verify if the services are running
+log "Checking the status of the systemd services"
 systemctl status wakeup-check-pre.service
+systemctl status wakeup-check-post.service
 
-log "Installation abgeschlossen!"
+log "Installation completed!"
