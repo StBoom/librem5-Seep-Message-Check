@@ -7,7 +7,6 @@ StopWhenUnneeded=true
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
-ExecStartPost=/bin/sleep 2s
 
 [Install]
 WantedBy=sleep.target
