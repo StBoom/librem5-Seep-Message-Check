@@ -219,19 +219,21 @@ is_in_whitelist() {
 
 # Monitor notifications using gdbus and handle them based on the mode
 monitor_notifications() {
-    log "Internet OK - monitoring notifications (via gdbus)..."
+    log "Internet OK - monitoring notifications (via busctl)..."
 
-    timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-    gdbus monitor --session --dest org.freedesktop.Notifications |
+    # Überwachen der Benachrichtigungen auf dem Benutzerbus
+    busctl --user monitor org.freedesktop.Notifications |
     while read -r line; do
-        log "Raw gdbus Output: $line"
+        log "Raw busctl Output: $line"
 
-        if echo "$line" | grep -q "member=Notify"; then
-            # Extract strings from the Notify method call
+        # Überprüfen, ob es sich um eine Benachrichtigung handelt
+        if echo "$line" | grep -q "Notify"; then
+            # Benachrichtigungsdetails extrahieren
             strings=($(echo "$line" | grep -oP 'string "\K[^"]+'))
             app="${strings[0]}"
             summary="${strings[3]}"
             body="${strings[4]}"
+
             app=$(echo "$app" | tr '[:upper:]' '[:lower:]')
 
             timestamp=$(date '+%F %T')
