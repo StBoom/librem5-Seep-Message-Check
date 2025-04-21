@@ -220,39 +220,34 @@ is_in_whitelist() {
 
 # Monitor notifications using gdbus and handle them based on the mode
 monitor_notifications() {
-    log "Internet OK - monitoring notifications (via busctl)..."
+    log "Internet OK - monitoring notifications via busctl..."
 
-    # Überwachen der Benachrichtigungen auf dem Benutzerbus
-    sudo -u "$TARGET_USER" \
-        XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-        DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        busctl --user monitor org.freedesktop.Notifications |
+    timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    busctl --user monitor org.freedesktop.Notifications --json=short |
     while read -r line; do
         log "Raw busctl Output: $line"
 
-        # Überprüfen, ob es sich um eine Benachrichtigung handelt
-        if echo "$line" | grep -q "Notify"; then
-            # Benachrichtigungsdetails extrahieren
-            strings=($(echo "$line" | grep -oP 'string "\K[^"]+'))
-            app="${strings[0]}"
-            summary="${strings[3]}"
-            body="${strings[4]}"
+        if echo "$line" | grep -q "Member\": \"Notify\""; then
+            # Erst AppName (4. Element aus body)
+            app=$(echo "$line" | awk -F'"body":' '{print $2}' | awk -F'"' '{print $8}' | tr '[:upper:]' '[:lower:]')
 
-            app=$(echo "$app" | tr '[:upper:]' '[:lower:]')
+            # Wenn AppName leer, nimm "desktop-entry"
+            if [[ -z "$app" ]]; then
+                app=$(echo "$line" | awk -F'"desktop-entry":' '{print $2}' | awk -F'"' '{print $2}' | tr '[:upper:]' '[:lower:]')
+            fi
 
-            timestamp=$(date '+%F %T')
-            log "[$timestamp] Notification received: App='$app' Title='$summary' Body='$body'"
+            # Kürzen auf den letzten Teil des Namens, z.B. 'Signal' statt 'org.signal.Signal'
+            app_name="${app##*.}"
 
-            [[ -z "$summary" ]] && log "[WARNING] Title is empty!"
-            [[ -z "$body" ]] && log "[WARNING] Message is empty!"
+            log "Notification from app: $app_name"
 
             local is_relevant=0
-            if [[ "$NOTIFICATION_MODE" == "all" ]] || is_in_whitelist "$app"; then
+            if [[ "$NOTIFICATION_MODE" == "all" ]] || is_in_whitelist "$app_name"; then
                 is_relevant=1
             fi
 
             if (( is_relevant == 1 )); then
-                if [ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]; then
+                if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
                     turn_on_display
                 fi
                 log "Using fbcli for notification"
