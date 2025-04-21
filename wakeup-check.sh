@@ -165,7 +165,7 @@ set_rtc_wakeup() {
 
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
-        log "RTC wakealarm and saved timestamp match ✔️"
+        log "RTC wakealarm and saved timestamp match"
     else
         log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
     fi
@@ -222,7 +222,7 @@ monitor_notifications() {
     log "Internet OK - monitoring notifications (via gdbus)..."
 
     timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-    gdbus monitor --system --dest org.freedesktop.Notifications |
+    gdbus monitor --session --dest org.freedesktop.Notifications |
     while read -r line; do
         log "Raw gdbus Output: $line"
 
@@ -286,7 +286,7 @@ if [[ "$MODE" == "post" ]]; then
         fi
 
         if wait_for_internet; then
-            log "Internet OK - monitoring notifications..."
+            #log "Internet OK - monitoring notifications..."
             TMP_NOTIFY_FILE=$(mktemp)
             (monitor_notifications > "$TMP_NOTIFY_FILE") &
             MONITOR_PID=$!
