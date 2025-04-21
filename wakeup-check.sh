@@ -222,7 +222,7 @@ is_in_whitelist() {
 monitor_notifications() {
     log "Internet OK - monitoring notifications via busctl..."
 
-    timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
     busctl --user monitor org.freedesktop.Notifications --json=short |
     while read -r line; do
         log "Raw busctl Output: $line"
