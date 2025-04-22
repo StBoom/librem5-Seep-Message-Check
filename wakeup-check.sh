@@ -229,6 +229,7 @@ monitor_notifications() {
     log "Monitoring notifications for $timeout_duration seconds..."
 
     timeout "$timeout_duration" \
+        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null | \
     while IFS= read -r line; do
         if echo "$line" | grep -q '"member":"Notify"'; then
