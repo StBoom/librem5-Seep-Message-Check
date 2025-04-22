@@ -246,7 +246,7 @@ function monitor_notifications() {
     while IFS= read -r line; do
         # Timeout prüfen
         if (( $(date +%s) >= timeout_at )); then
-            echo "Timeout reached while monitoring notifications."
+            log "Timeout reached while monitoring notifications."
             kill "$monitor_pid" 2>/dev/null
             rm -f "$tmp_fifo"
             return 124
@@ -264,12 +264,12 @@ function monitor_notifications() {
             fi
 
             if is_whitelisted "$check_entry"; then
-                echo "Allowed notification from: $check_entry"
+                log "Allowed notification from: $check_entry"
                 kill "$monitor_pid" 2>/dev/null
                 rm -f "$tmp_fifo"
                 return 0
             else
-                echo "Disallowed notification from: $check_entry"
+                log "Disallowed notification from: $check_entry"
             fi
         fi
     done < "$tmp_fifo"
@@ -277,44 +277,6 @@ function monitor_notifications() {
     # Aufräumen, falls keine Benachrichtigung kam
     kill "$monitor_pid" 2>/dev/null
     rm -f "$tmp_fifo"
-    return 1
-}
-
-# Function to monitor DBus notifications
-monitor_notifications_alt() {
-    log "Starting DBus notification monitor..."
-
-    stdbuf -oL busctl --user monitor org.freedesktop.Notifications --json=short |
-    while IFS= read -r line; do
-        log "DBus line: $line"
-
-        if echo "$line" | grep -q '"member":"Notify"'; then
-            app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
-            desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
-
-            if [[ -z "$desktop_entry" ]]; then
-                check_entry="${app_name}"
-            else
-                check_entry=$(get_app_name_from_desktop_entry "$desktop_entry")
-            fi
-
-            log "app_found $check_entry"
-
-            if is_whitelisted "$check_entry"; then
-                log "Notification from whitelisted app: $check_entry"
-
-                if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
-                    turn_on_display
-                fi
-                use_fbcli
-                return 0  # Erfolgreich - Skript bleibt wach
-            else
-                log "Disallowed notification from: $check_entry"
-            fi
-        fi
-    done
-
-    log "monitor_notifications exited without trigger"
     return 1
 }
 
@@ -347,7 +309,7 @@ if [[ "$MODE" == "post" ]]; then
         if wait_for_internet; then
             log "Internet OK - monitoring notifications for $NOTIFICATION_TIMEOUT seconds..."
             
-            if monitor_notifications then
+            if monitor_notifications; then
                 log "Relevant notification received - staying awake."
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
@@ -355,7 +317,8 @@ if [[ "$MODE" == "post" ]]; then
             else
                 log "Notification monitor exited unexpectedly - suspending."
                 systemctl suspend
-fi
+            fi
+        fi
         else
             log "No internet - suspending."
             systemctl suspend
