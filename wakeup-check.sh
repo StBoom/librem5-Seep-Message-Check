@@ -256,11 +256,12 @@ monitor_notifications() {
 }
 
 # ---------- MAIN ----------
-turn_off_display
+
 MODE="$1"
 log "===== wakeup-check.sh started (mode: $MODE) ====="
 
 if [[ "$MODE" == "pre" ]]; then
+    turn_off_display
     set_rtc_wakeup
     log "Pre-mode done."
     log "===== wakeup-check.sh finished ====="
@@ -269,6 +270,7 @@ if [[ "$MODE" == "pre" ]]; then
 fi
 
 if [[ "$MODE" == "post" ]]; then
+    turn_off_display
     log "System woke up from standby."
     log "Checking for RTC wake..."
 
@@ -282,10 +284,10 @@ if [[ "$MODE" == "post" ]]; then
         fi
 
         if wait_for_internet; then
-            log "Internet OK - monitoring notifications for $NOTIFICATION_TIMEOUT seconds..."
+            log "Internet OK"
 
             if monitor_notifications; then
-                log "Relevant notification received - staying awake."
+                log "Relevant notification received staying awake"
                 
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
