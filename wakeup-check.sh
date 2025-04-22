@@ -131,7 +131,7 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    log "=== Setting RTC Wakeup ==="
+    log "Setting RTC Wakeup"
     log "Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
