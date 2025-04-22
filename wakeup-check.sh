@@ -8,6 +8,15 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 source "$CONFIG_FILE"
 
+# Verify required variables are set
+REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT)
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "[ERROR] Required config variable '$var' is not set."
+        exit 1
+    fi
+done
+
 TARGET_UID=$(id -u "$TARGET_USER")
 if [ ! -d "/run/user/${TARGET_UID}" ]; then
     echo "[ERROR] DBus session for user $TARGET_USER not found"
@@ -41,13 +50,16 @@ turn_on_display() {
 
 use_fbcli() {
     if [ "$NOTIFICATION_USE_FBCLI" == "true" ]; then
-        log "Using fbcli for notification"
-        sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
-        sudo -u "$TARGET_USER" fbcli -E message-new-instant
+        if command -v fbcli >/dev/null 2>&1; then
+            log "Using fbcli for notification"
+            sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
+            sudo -u "$TARGET_USER" fbcli -E message-new-instant
+        else
+            log "fbcli not found, skipping fbcli notifications"
+        fi
     fi
 }
 
-# Check if the current time is within quiet hours
 is_quiet_hours() {
     local test_time="$1"
     local now
@@ -75,7 +87,6 @@ is_quiet_hours() {
     fi
 }
 
-# Check if the wake was triggered by RTC
 is_rtc_wakeup() {
     if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
         log "No wake timestamp file found - not an RTC wake."
@@ -102,7 +113,6 @@ is_rtc_wakeup() {
     fi
 }
 
-# Set the RTC wakeup time based on quiet hours and alarms
 set_rtc_wakeup() {
     local now=$(date +%s)
     local today=$(date +%Y-%m-%d)
@@ -112,7 +122,6 @@ set_rtc_wakeup() {
     log "=== Setting RTC Wakeup ==="
     log "Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
-    # Berechne Start- und Endzeit der Ruhezeit
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
     if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
@@ -125,7 +134,6 @@ set_rtc_wakeup() {
     log "Quiet hours start: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S')"
     log "Quiet hours end:   $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
-    # Hole nächste Alarmzeit
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
         log "Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
@@ -134,7 +142,6 @@ set_rtc_wakeup() {
         next_alarm_ts=""
     fi
 
-    # Bestimme Basis-Wake-Zeit
     if is_quiet_hours; then
         log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
@@ -144,14 +151,12 @@ set_rtc_wakeup() {
         log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
-    # Passe an, falls ein Alarm früher liegt
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
         adjusted_wake_ts=$(( next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60) ))
         log "Alarm is earlier than current wake time - adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
-    # RTC Wake setzen
     if ! echo "$wake_ts" > "$WAKE_TIMESTAMP_FILE"; then
         log "[ERROR] Failed to write timestamp file: $WAKE_TIMESTAMP_FILE"
         exit 1
@@ -172,7 +177,6 @@ set_rtc_wakeup() {
     fi
 }
 
-# Get the time of the next alarm
 get_next_alarm_time() {
     alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
@@ -184,7 +188,6 @@ get_next_alarm_time() {
     echo "$alarm_time"
 }
 
-# Wait for internet connectivity
 wait_for_internet() {
     log "Waiting up to $MAX_WAIT seconds for internet..."
     for ((i=0; i<MAX_WAIT; i++)); do
@@ -205,46 +208,36 @@ wait_for_internet() {
     return 1
 }
 
-# Function to check if an entry is in the whitelist
-function is_whitelisted() {
+is_whitelisted() {
     local entry="$1"
     for item in "${APP_WHITELIST[@]}"; do
-        if [[ "${item,,}" == "${entry,,}" ]]; then  # Case-insensitive comparison
+        if [[ "${item,,}" == "${entry,,}" ]]; then
             return 0
         fi
     done
     return 1
 }
 
-# Function to extract the app name from the desktop entry
-function get_app_name_from_desktop_entry() {
+get_app_name_from_desktop_entry() {
     local desktop_entry="$1"
-    # Extract the last part of the desktop entry after the dot
     app_name=$(echo "$desktop_entry" | awk -F '.' '{print $NF}')
     echo "$app_name"
 }
 
-# Function to monitor DBus notifications with timeout logic
-function monitor_notifications() {
-    local timeout_duration=${NOTIFICATION_TIMEOUT:-60}  # Fallback auf 60 Sekunden
+monitor_notifications() {
+    local timeout_duration=${NOTIFICATION_TIMEOUT:-60}
     local timeout_at=$(( $(date +%s) + timeout_duration ))
     local tmp_fifo="/tmp/dbus_monitor_fifo_$$"
 
     echo "Monitoring notifications for $timeout_duration seconds..."
 
-    # FIFO (Named Pipe) erstellen
     mkfifo "$tmp_fifo"
-
-    # busctl im Hintergrund starten und in FIFO schreiben
     busctl --user monitor org.freedesktop.Notifications --json=short > "$tmp_fifo" &
     local monitor_pid=$!
 
-    # Kurze Pause, damit busctl sich vollständig initialisieren kann
     sleep 0.2
 
-    # Lesen aus dem FIFO
     while IFS= read -r line; do
-        # Timeout prüfen
         if (( $(date +%s) >= timeout_at )); then
             log "Timeout reached while monitoring notifications."
             kill "$monitor_pid" 2>/dev/null
@@ -252,7 +245,6 @@ function monitor_notifications() {
             return 124
         fi
 
-        # Nur "Notify"-Nachrichten verarbeiten
         if echo "$line" | grep -q '"member":"Notify"'; then
             app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
             desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
@@ -274,7 +266,6 @@ function monitor_notifications() {
         fi
     done < "$tmp_fifo"
 
-    # Aufräumen, falls keine Benachrichtigung kam
     kill "$monitor_pid" 2>/dev/null
     rm -f "$tmp_fifo"
     return 1
@@ -296,7 +287,7 @@ fi
 if [[ "$MODE" == "post" ]]; then
     log "System woke up from standby."
     log "Checking for RTC wake..."
-    
+
     if is_rtc_wakeup; then
         log "RTC wake detected."
 
@@ -308,7 +299,7 @@ if [[ "$MODE" == "post" ]]; then
 
         if wait_for_internet; then
             log "Internet OK - monitoring notifications for $NOTIFICATION_TIMEOUT seconds..."
-            
+
             if monitor_notifications; then
                 log "Relevant notification received - staying awake."
             elif [[ $? -eq 124 ]]; then
@@ -318,7 +309,6 @@ if [[ "$MODE" == "post" ]]; then
                 log "Notification monitor exited unexpectedly - suspending."
                 systemctl suspend
             fi
-        fi
         else
             log "No internet - suspending."
             systemctl suspend
