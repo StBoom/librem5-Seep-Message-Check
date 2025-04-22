@@ -225,39 +225,50 @@ function get_app_name_from_desktop_entry() {
 }
 
 # Function to monitor DBus notifications
-function monitor_notifications() {
+monitor_notifications() {
+    local timeout="$1"
+    local end_time=$(( $(date +%s) + timeout ))
+
     busctl --user monitor org.freedesktop.Notifications --json=short |
     while IFS= read -r line; do
-        # Process only "Notify" messages
+        # Überprüfen, ob die Zeit abgelaufen ist
+        local current_time=$(date +%s)
+        if (( current_time >= end_time )); then
+            log "Notification monitoring timed out"
+            return 1  # Timeout erreicht, gebe 1 zurück
+        fi
+
+        # Verarbeite nur "Notify"-Nachrichten
         if echo "$line" | grep -q '"member":"Notify"'; then
-            # Extract app name
+            # Extrahiere App-Namen und Desktop Entry
             app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
-            # Extract desktop entry
             desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
 
-            # If desktop entry is empty, use app_name instead
+            # Wenn der Desktop-Eintrag leer ist, verwende den App-Namen
             if [[ -z "$desktop_entry" ]]; then
                 check_entry="${app_name}"
             else
                 check_entry=$(get_app_name_from_desktop_entry "$desktop_entry")
             fi
             log "app_found $check_entry"
-            # Check if the relevant entry is in the whitelist
+
+            # Überprüfe, ob der Eintrag in der Whitelist ist
             if is_whitelisted "$check_entry"; then
                 echo "NOTIFIED"
                 if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
                     turn_on_display
                 fi
-                log "Notification from whitelistet app: $check_entry"
+                log "Notification from whitelisted app: $check_entry"
                 log "Using fbcli for notification"
                 use_fbcli
-                echo "NOTIFIED"
-                return 0
+                return 0  # Relevante Benachrichtigung gefunden, gebe 0 zurück
             else
                 log "Disallowed notification from: $check_entry"
             fi
         fi
     done
+
+    return 1  # Keine relevante Benachrichtigung gefunden, gebe 1 zurück
 }
 
 # ---------- MAIN ----------
@@ -284,21 +295,14 @@ if [[ "$MODE" == "post" ]]; then
             systemctl suspend
             exit 0
         fi
-
         if wait_for_internet; then
             log "Internet OK - monitoring notifications..."
-            TMP_NOTIFY_FILE=$(mktemp)
-            (monitor_notifications > "$TMP_NOTIFY_FILE") &
-            MONITOR_PID=$!
-            sleep "$NOTIFICATION_TIMEOUT"
-            wait $MONITOR_PID
-            if grep -q "NOTIFIED" "$TMP_NOTIFY_FILE"; then
-                log "Relevant notification found - staying awake."
-            else
-                log "No relevant notification - suspending again."
+            if ! monitor_notifications "$NOTIFICATION_TIMEOUT"; then
+                log "No relevant notification or timeout reached - suspending again."
                 systemctl suspend
+            else
+                log "Relevant notification found - staying awake."
             fi
-            rm -f "$TMP_NOTIFY_FILE"
         else
             log "No internet - suspending."
             systemctl suspend
