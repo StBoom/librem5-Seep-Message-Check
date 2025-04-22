@@ -60,6 +60,18 @@ use_fbcli() {
     fi
 }
 
+handle_notification_actions() {
+    if [[ "${NOTIFICATION_TURN_ON_DISPLAY,,}" == "true" ]]; then
+        log "Turning display on due to notification..."
+        turn_on_display
+    fi
+
+    if [[ "${NOTIFICATION_USE_FBCLI,,}" == "true" ]]; then
+        log "Calling fbcli due to notification..."
+        use_fbcli
+    fi
+}
+
 is_quiet_hours() {
     local test_time="$1"
     local now
@@ -288,7 +300,7 @@ if [[ "$MODE" == "post" ]]; then
 
             if monitor_notifications; then
                 log "Relevant notification received staying awake"
-                
+                handle_notification_actions
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
                 systemctl suspend
