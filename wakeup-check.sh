@@ -224,8 +224,64 @@ function get_app_name_from_desktop_entry() {
     echo "$app_name"
 }
 
+# Function to monitor DBus notifications with timeout logic
+function monitor_notifications() {
+    local timeout_duration=${NOTIFICATION_TIMEOUT:-60}  # Fallback auf 60 Sekunden
+    local timeout_at=$(( $(date +%s) + timeout_duration ))
+    local tmp_fifo="/tmp/dbus_monitor_fifo_$$"
+
+    echo "Monitoring notifications for $timeout_duration seconds..."
+
+    # FIFO (Named Pipe) erstellen
+    mkfifo "$tmp_fifo"
+
+    # busctl im Hintergrund starten und in FIFO schreiben
+    busctl --user monitor org.freedesktop.Notifications --json=short > "$tmp_fifo" &
+    local monitor_pid=$!
+
+    # Kurze Pause, damit busctl sich vollständig initialisieren kann
+    sleep 0.2
+
+    # Lesen aus dem FIFO
+    while IFS= read -r line; do
+        # Timeout prüfen
+        if (( $(date +%s) >= timeout_at )); then
+            echo "Timeout reached while monitoring notifications."
+            kill "$monitor_pid" 2>/dev/null
+            rm -f "$tmp_fifo"
+            return 124
+        fi
+
+        # Nur "Notify"-Nachrichten verarbeiten
+        if echo "$line" | grep -q '"member":"Notify"'; then
+            app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
+            desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
+
+            if [[ -z "$desktop_entry" ]]; then
+                check_entry="${app_name}"
+            else
+                check_entry=$(get_app_name_from_desktop_entry "$desktop_entry")
+            fi
+
+            if is_whitelisted "$check_entry"; then
+                echo "Allowed notification from: $check_entry"
+                kill "$monitor_pid" 2>/dev/null
+                rm -f "$tmp_fifo"
+                return 0
+            else
+                echo "Disallowed notification from: $check_entry"
+            fi
+        fi
+    done < "$tmp_fifo"
+
+    # Aufräumen, falls keine Benachrichtigung kam
+    kill "$monitor_pid" 2>/dev/null
+    rm -f "$tmp_fifo"
+    return 1
+}
+
 # Function to monitor DBus notifications
-monitor_notifications() {
+monitor_notifications_alt() {
     log "Starting DBus notification monitor..."
 
     stdbuf -oL busctl --user monitor org.freedesktop.Notifications --json=short |
@@ -250,7 +306,6 @@ monitor_notifications() {
                 if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
                     turn_on_display
                 fi
-
                 use_fbcli
                 return 0  # Erfolgreich - Skript bleibt wach
             else
@@ -292,7 +347,7 @@ if [[ "$MODE" == "post" ]]; then
         if wait_for_internet; then
             log "Internet OK - monitoring notifications for $NOTIFICATION_TIMEOUT seconds..."
             
-            if timeout "${NOTIFICATION_TIMEOUT}s" monitor_notifications; then
+            if monitor_notifications then
                 log "Relevant notification received - staying awake."
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
