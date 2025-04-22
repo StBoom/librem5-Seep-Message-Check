@@ -18,7 +18,7 @@ XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
 log() {
     local msg="$1"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" | tee -a "$LOGFILE"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
 turn_off_display() {
@@ -205,19 +205,6 @@ wait_for_internet() {
     return 1
 }
 
-# Check if app is in whitelist
-is_in_whitelist() {
-    local app="$1"
-    local whitelist=($APP_WHITELIST)
-
-    for match in "${whitelist[@]}"; do
-        if [[ "${app,,}" == *"${match,,}"* ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 # Function to check if an entry is in the whitelist
 function is_whitelisted() {
     local entry="$1"
@@ -254,7 +241,7 @@ function monitor_notifications() {
             else
                 check_entry=$(get_app_name_from_desktop_entry "$desktop_entry")
             fi
-
+            log "app_found $check_entry"
             # Check if the relevant entry is in the whitelist
             if is_whitelisted "$check_entry"; then
                 echo "NOTIFIED"
@@ -271,49 +258,6 @@ function monitor_notifications() {
             fi
         fi
     done
-}
-
-# Monitor notifications using gdbus and handle them based on the mode
-monitor_notifications_alt() {
-    log "Internet OK - monitoring notifications via busctl..."
-
-    timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-    busctl --user monitor org.freedesktop.Notifications --json=short |
-    while read -r line; do
-        log "Raw busctl Output: $line"
-
-        if echo "$line" | grep -q "Member\": \"Notify\""; then
-            # Erst AppName (4. Element aus body)
-            app=$(echo "$line" | awk -F'"body":' '{print $2}' | awk -F'"' '{print $8}' | tr '[:upper:]' '[:lower:]')
-
-            # Wenn AppName leer, nimm "desktop-entry"
-            if [[ -z "$app" ]]; then
-                app=$(echo "$line" | awk -F'"desktop-entry":' '{print $2}' | awk -F'"' '{print $2}' | tr '[:upper:]' '[:lower:]')
-            fi
-
-            # Kürzen auf den letzten Teil des Namens, z.B. 'Signal' statt 'org.signal.Signal'
-            app_name="${app##*.}"
-
-            log "Notification from app: $app_name"
-
-            local is_relevant=0
-            if [[ "$NOTIFICATION_MODE" == "all" ]] || is_in_whitelist "$app_name"; then
-                is_relevant=1
-            fi
-
-            if (( is_relevant == 1 )); then
-                if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
-                    turn_on_display
-                fi
-                log "Using fbcli for notification"
-                use_fbcli
-                echo "NOTIFIED"
-                return 0
-            fi
-        fi
-    done
-
-    return 1
 }
 
 # ---------- MAIN ----------
@@ -342,7 +286,7 @@ if [[ "$MODE" == "post" ]]; then
         fi
 
         if wait_for_internet; then
-            #log "Internet OK - monitoring notifications..."
+            log "Internet OK - monitoring notifications..."
             TMP_NOTIFY_FILE=$(mktemp)
             (monitor_notifications > "$TMP_NOTIFY_FILE") &
             MONITOR_PID=$!
