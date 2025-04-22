@@ -226,7 +226,12 @@ function get_app_name_from_desktop_entry() {
 
 # Function to monitor DBus notifications
 monitor_notifications() {
+    log "Starting DBus notification monitor..."
+
+    stdbuf -oL busctl --user monitor org.freedesktop.Notifications --json=short |
     while IFS= read -r line; do
+        log "DBus line: $line"
+
         if echo "$line" | grep -q '"member":"Notify"'; then
             app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
             desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
@@ -247,14 +252,15 @@ monitor_notifications() {
                 fi
 
                 use_fbcli
-                return 0
+                return 0  # Erfolgreich - Skript bleibt wach
             else
                 log "Disallowed notification from: $check_entry"
             fi
         fi
-    done < <(busctl --user monitor org.freedesktop.Notifications --json=short)
+    done
 
-    return 1  # Falls busctl endet (unerwartet), ohne Notification
+    log "monitor_notifications exited without trigger"
+    return 1
 }
 
 # ---------- MAIN ----------
