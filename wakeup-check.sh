@@ -288,10 +288,13 @@ if [[ "$MODE" == "post" ]]; then
             
             if timeout "${NOTIFICATION_TIMEOUT}s" monitor_notifications; then
                 log "Relevant notification received - staying awake."
-            else
-                log "No relevant notification or timeout reached - suspending again."
+            elif [[ $? -eq 124 ]]; then
+                log "Notification timeout reached - suspending again."
                 systemctl suspend
-            fi
+            else
+                log "Notification monitor exited unexpectedly - suspending."
+                systemctl suspend
+fi
         else
             log "No internet - suspending."
             systemctl suspend
