@@ -61,16 +61,17 @@ use_fbcli() {
 }
 
 handle_notification_actions() {
-    if [[ "${NOTIFICATION_TURN_ON_DISPLAY,,}" == "true" ]]; then
+    if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
         log "Turning display on due to notification..."
         turn_on_display
     fi
 
-    if [[ "${NOTIFICATION_USE_FBCLI,,}" == "true" ]]; then
+    if [[ "$NOTIFICATION_USE_FBCLI" == "true" ]]; then
         log "Calling fbcli due to notification..."
         use_fbcli
     fi
 }
+
 
 is_quiet_hours() {
     local test_time="$1"
