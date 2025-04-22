@@ -30,13 +30,53 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
-turn_off_display() {
+turn_off_display_alt() {
     log "Turning off display"
     sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
         --dest org.gnome.ScreenSaver \
         --object-path /org/gnome/ScreenSaver \
         --method org.gnome.ScreenSaver.SetActive true >/dev/null
+}
+
+turn_off_display() {
+    local max_attempts=3
+    local attempt=1
+    local success=0
+
+    log "Attempting to turn off display (Wayland)..."
+
+    while (( attempt <= max_attempts )); do
+        log "Display off attempt $attempt..."
+        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+            gdbus call --session \
+            --dest org.gnome.ScreenSaver \
+            --object-path /org/gnome/ScreenSaver \
+            --method org.gnome.ScreenSaver.SetActive true >/dev/null 2>&1
+
+        # Warte einen Moment und prüfe, ob der ScreenSaver aktiv ist
+        local is_active
+        is_active=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+            gdbus call --session \
+            --dest org.gnome.ScreenSaver \
+            --object-path /org/gnome/ScreenSaver \
+            --method org.gnome.ScreenSaver.GetActive 2>/dev/null | grep -q "true" && echo "yes" || echo "no")
+
+        if [[ "$is_active" == "yes" ]]; then
+            log "Display off confirmed on attempt $attempt."
+            success=1
+            break
+        else
+            log "Display off attempt $attempt failed."
+            sleep 1
+        fi
+
+        ((attempt++))
+    done
+
+    if [[ "$success" -eq 0 ]]; then
+        log "[WARNING] Failed to turn off display after $max_attempts attempts."
+    fi
 }
 
 turn_on_display() {
