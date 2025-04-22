@@ -226,32 +226,11 @@ get_app_name_from_desktop_entry() {
 
 monitor_notifications() {
     local timeout_duration=${NOTIFICATION_TIMEOUT:-60}
-    local tmp_fifo
-    tmp_fifo=$(mktemp -u "/tmp/dbus_monitor_fifo_XXXXXX")
-    mkfifo "$tmp_fifo"
-
     log "Monitoring notifications for $timeout_duration seconds..."
 
-    # Starte busctl und leite in FIFO um
-    busctl --user monitor org.freedesktop.Notifications --json=short > "$tmp_fifo" &
-    local monitor_pid=$!
-
-    # Cleanup bei EXIT
-    trap 'rm -f "$tmp_fifo"; kill $monitor_pid 2>/dev/null' EXIT
-
-    # Starte separaten Timeout-Prozess
-    (
-        sleep "$timeout_duration"
-        echo "TIMEOUT_REACHED" > "$tmp_fifo"
-    ) &
-
-    while IFS= read -r line < "$tmp_fifo"; do
-        if [[ "$line" == "TIMEOUT_REACHED" ]]; then
-            log "Timeout reached while monitoring notifications."
-            kill $monitor_pid 2>/dev/null
-            return 124
-        fi
-
+    timeout "$timeout_duration" \
+        busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null | \
+    while IFS= read -r line; do
         if echo "$line" | grep -q '"member":"Notify"'; then
             app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
             desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
@@ -264,16 +243,15 @@ monitor_notifications() {
 
             if is_whitelisted "$check_entry"; then
                 log "Allowed notification from: $check_entry"
-                kill $monitor_pid 2>/dev/null
-                return 0
+                kill "$$" 
             else
                 log "Disallowed notification from: $check_entry"
             fi
         fi
     done
 
-    log "Notification monitoring ended without match."
-    return 1
+    log "Notification monitor timed out without match."
+    return 124
 }
 
 # ---------- MAIN ----------
@@ -307,6 +285,7 @@ if [[ "$MODE" == "post" ]]; then
 
             if monitor_notifications; then
                 log "Relevant notification received - staying awake."
+                
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
                 systemctl suspend
