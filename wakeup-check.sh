@@ -218,8 +218,63 @@ is_in_whitelist() {
     return 1
 }
 
+# Function to check if an entry is in the whitelist
+function is_whitelisted() {
+    local entry="$1"
+    for item in "${APP_WHITELIST[@]}"; do
+        if [[ "${item,,}" == "${entry,,}" ]]; then  # Case-insensitive comparison
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Function to extract the app name from the desktop entry
+function get_app_name_from_desktop_entry() {
+    local desktop_entry="$1"
+    # Extract the last part of the desktop entry after the dot
+    app_name=$(echo "$desktop_entry" | awk -F '.' '{print $NF}')
+    echo "$app_name"
+}
+
+# Function to monitor DBus notifications
+function monitor_notifications() {
+    busctl --user monitor org.freedesktop.Notifications --json=short |
+    while IFS= read -r line; do
+        # Process only "Notify" messages
+        if echo "$line" | grep -q '"member":"Notify"'; then
+            # Extract app name
+            app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
+            # Extract desktop entry
+            desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
+
+            # If desktop entry is empty, use app_name instead
+            if [[ -z "$desktop_entry" ]]; then
+                check_entry="${app_name}"
+            else
+                check_entry=$(get_app_name_from_desktop_entry "$desktop_entry")
+            fi
+
+            # Check if the relevant entry is in the whitelist
+            if is_whitelisted "$check_entry"; then
+                echo "NOTIFIED"
+                if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
+                    turn_on_display
+                fi
+                log "Notification from whitelistet app: $check_entry"
+                log "Using fbcli for notification"
+                use_fbcli
+                echo "NOTIFIED"
+                return 0
+            else
+                log "Disallowed notification from: $check_entry"
+            fi
+        fi
+    done
+}
+
 # Monitor notifications using gdbus and handle them based on the mode
-monitor_notifications() {
+monitor_notifications_alt() {
     log "Internet OK - monitoring notifications via busctl..."
 
     timeout "$NOTIFICATION_TIMEOUT" sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
