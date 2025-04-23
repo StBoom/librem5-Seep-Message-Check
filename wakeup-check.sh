@@ -42,16 +42,16 @@ get_gnome_version() {
 turn_off_display() {
     local gnome_version=$(get_gnome_version)
 
-    echo "GNOME Version: $gnome_version"
+    log "GNOME Version: $gnome_version"
 
     if [[ -z "$gnome_version" ]]; then
-        echo "GNOME Shell Version konnte nicht ermittelt werden."
+        log "GNOME Shell Version konnte nicht ermittelt werden."
         return 1
     fi
 
     # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
     if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
-        echo "Using gdbus for turning off the display (GNOME >= 3.36)..."
+        log "Using gdbus for turning off the display (GNOME >= 3.36)..."
         gdbus call --session \
             --dest org.gnome.Mutter.DisplayConfig \
             --object-path /org/gnome/Mutter/DisplayConfig \
@@ -59,13 +59,13 @@ turn_off_display() {
             int32:1 >/dev/null
 
         if [[ $? -eq 0 ]]; then
-            echo "Display turned off using gdbus"
+            log "Display turned off using gdbus"
         else
-            echo "Failed to turn off display using gdbus"
+            log "Failed to turn off display using gdbus"
         fi
     else
         # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
-        echo "Using dbus-send for turning off the display (GNOME < 3.36)..."
+        log "Using dbus-send for turning off the display (GNOME < 3.36)..."
         dbus-send --session \
             --dest=org.gnome.Mutter.DisplayConfig \
             --type=method_call \
@@ -74,9 +74,9 @@ turn_off_display() {
             int32:1 >/dev/null
 
         if [[ $? -eq 0 ]]; then
-            echo "Display turned off using dbus-send"
+            log "Display turned off using dbus-send"
         else
-            echo "Failed to turn off display using dbus-send"
+            log "Failed to turn off display using dbus-send"
         fi
     fi
 }
@@ -85,16 +85,16 @@ turn_off_display() {
 turn_on_display() {
     local gnome_version=$(get_gnome_version)
 
-    echo "GNOME Version: $gnome_version"
+    log "GNOME Version: $gnome_version"
 
     if [[ -z "$gnome_version" ]]; then
-        echo "GNOME Shell Version konnte nicht ermittelt werden."
+        log "GNOME Shell Version konnte nicht ermittelt werden."
         return 1
     fi
 
     # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
     if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
-        echo "Using gdbus for turning on the display (GNOME >= 3.36)..."
+        log "Using gdbus for turning on the display (GNOME >= 3.36)..."
         gdbus call --session \
             --dest org.gnome.Mutter.DisplayConfig \
             --object-path /org/gnome/Mutter/DisplayConfig \
@@ -102,13 +102,13 @@ turn_on_display() {
             int32:0 >/dev/null
 
         if [[ $? -eq 0 ]]; then
-            echo "Display turned on using gdbus"
+            log "Display turned on using gdbus"
         else
-            echo "Failed to turn on display using gdbus"
+            log "Failed to turn on display using gdbus"
         fi
     else
         # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
-        echo "Using dbus-send for turning on the display (GNOME < 3.36)..."
+        log "Using dbus-send for turning on the display (GNOME < 3.36)..."
         dbus-send --session \
             --dest=org.gnome.Mutter.DisplayConfig \
             --type=method_call \
@@ -117,9 +117,9 @@ turn_on_display() {
             int32:0 >/dev/null
 
         if [[ $? -eq 0 ]]; then
-            echo "Display turned on using dbus-send"
+            log "Display turned on using dbus-send"
         else
-            echo "Failed to turn on display using dbus-send"
+            log "Failed to turn on display using dbus-send"
         fi
     fi
 }
@@ -352,9 +352,18 @@ monitor_notifications() {
 }
 
 # ---------- MAIN ----------
-
 MODE="$1"
 log "===== wakeup-check.sh started (mode: $MODE) ====="
+
+if [[ "$MODE" == "pre" ]]; then
+    turn_off_display
+    set_rtc_wakeup
+    log "Pre-mode done."
+    log "===== wakeup-check.sh finished ====="
+    systemctl suspend &
+    disown
+    exit 0
+fi
 
 if [[ "$MODE" == "post" ]]; then
     turn_off_display
@@ -366,7 +375,8 @@ if [[ "$MODE" == "post" ]]; then
 
         if is_quiet_hours; then
             log "Currently in quiet hours - suspending again."
-            systemctl suspend
+            systemctl suspend &
+            disown
             exit 0
         fi
 
@@ -378,14 +388,20 @@ if [[ "$MODE" == "post" ]]; then
                 handle_notification_actions
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
-                systemctl suspend
+                systemctl suspend &
+                disown
+                exit 0
             else
                 log "Notification monitor exited unexpectedly - suspending."
-                systemctl suspend
+                systemctl suspend &
+                disown
+                exit 0
             fi
         else
             log "No internet - suspending."
-            systemctl suspend
+            systemctl suspend &
+            disown
+            exit 0
         fi
     else
         log "Not an RTC wake - staying awake and turning display on."
@@ -393,13 +409,6 @@ if [[ "$MODE" == "post" ]]; then
     fi
 
     log "===== wakeup-check.sh finished ====="
-    exit 0
-fi
-
-if [[ "$MODE" == "pre" ]]; then
-    turn_off_display
-    set_rtc_wakeup
-    log "Pre-mode done."
-    log "===== wakeup-check.sh finished ====="
+    sleep 1
     exit 0
 fi
