@@ -307,8 +307,7 @@ if [[ "$MODE" == "post" ]]; then
 
         if is_quiet_hours; then
             log "Currently in quiet hours - suspending again."
-            systemctl suspend &
-            disown
+            systemctl suspend
             exit 0
         fi
 
@@ -325,14 +324,12 @@ if [[ "$MODE" == "post" ]]; then
                 exit 0
             else
                 log "Notification monitor exited unexpectedly - suspending."
-                systemctl suspend &
-                disown
+                systemctl suspend
                 exit 0
             fi
         else
             log "No internet - suspending."
-            systemctl suspend &
-            disown
+            systemctl suspend
             exit 0
         fi
     else
