@@ -2,13 +2,10 @@
 [Unit]
 Description=Wakeup Check Pre Suspend
 Before=sleep.target
-StopWhenUnneeded=true
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
-ExecStartPost=/bin/sleep 2s
-#ExecStopPost=/bin/systemctl suspend
 
 [Install]
 WantedBy=sleep.target
