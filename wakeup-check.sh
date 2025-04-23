@@ -30,8 +30,6 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
-#!/bin/bash
-
 turn_off_display() {
 # Funktion zum Ausschalten des Displays
     log "Using gdbus for turning off the display (GNOME >= 3.36)..."
