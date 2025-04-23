@@ -3,16 +3,16 @@
 # Installer for Wakeup Check Service
 
 # Define paths
-SCRIPT_PATH="/usr/local/bin/"
+SCRIPT_PATH="/usr/local/bin"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
 SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
-CONFIG_PATH="/etc/wakeup-check.conf"
+CONFIG_PATH="/etc"
 
 # Ensure the script has the correct permissions
 echo "Setting executable permissions for $SCRIPT_PATH..."
-chmod +x $SCRIPT_PATH
+chmod +x wakeup-check.sh
 
 # Copy the wakeup-check.sh script to /usr/local/bin, only if it doesn't exist
 if [ ! -f "$SCRIPT_PATH" ]; then
@@ -98,7 +98,9 @@ fi
 echo "Reloading systemd..."
 systemctl daemon-reload
 
-# Enable services to start on suspend
-echo "Enabling systemd services
+# Enable services
+echo "Enabling systemd services..."
+systemctl enable wakeup-check-pre.service
+systemctl enable wakeup-check-post.service
 
-echo "Installation complete"
+echo "Installation complete."
