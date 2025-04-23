@@ -57,4 +57,6 @@ if [[ "$remove_ts" =~ ^[Yy]$ ]]; then
     rmdir "$WAKE_DIR" 2>/dev/null && echo "Removed empty directory $WAKE_DIR."
 fi
 
-echo "✅ Uninstallation complete."
+echo "Uninstallation complete."
+
+EOF
