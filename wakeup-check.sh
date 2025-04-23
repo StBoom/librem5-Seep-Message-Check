@@ -32,95 +32,35 @@ log() {
 
 #!/bin/bash
 
-# Funktion zur Überprüfung der GNOME Version
-get_gnome_version() {
-    gnome_version=$(gnome-shell --version 2>/dev/null | awk '{print $3}')
-    echo "$gnome_version"
-}
-
 # Funktion zum Ausschalten des Displays
-turn_off_display() {
-    local gnome_version=$(get_gnome_version)
+    log "Using gdbus for turning off the display (GNOME >= 3.36)..."
+    gdbus call --session \
+        --dest org.gnome.Mutter.DisplayConfig \
+        --object-path /org/gnome/Mutter/DisplayConfig \
+        --method org.gnome.Mutter.DisplayConfig.PowerSave \
+        int32:1 >/dev/null
 
-    log "GNOME Version: $gnome_version"
-
-    if [[ -z "$gnome_version" ]]; then
-        log "GNOME Shell Version konnte nicht ermittelt werden."
-        return 1
-    fi
-
-    # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
-    if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
-        log "Using gdbus for turning off the display (GNOME >= 3.36)..."
-        gdbus call --session \
-            --dest org.gnome.Mutter.DisplayConfig \
-            --object-path /org/gnome/Mutter/DisplayConfig \
-            --method org.gnome.Mutter.DisplayConfig.PowerSave \
-            int32:1 >/dev/null
-
-        if [[ $? -eq 0 ]]; then
-            log "Display turned off using gdbus"
-        else
-            log "Failed to turn off display using gdbus"
-        fi
+    if [[ $? -eq 0 ]]; then
+        log "Display turned off using gdbus"
     else
-        # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
-        log "Using dbus-send for turning off the display (GNOME < 3.36)..."
-        dbus-send --session \
-            --dest=org.gnome.Mutter.DisplayConfig \
-            --type=method_call \
-            /org/gnome/Mutter/DisplayConfig \
-            org.gnome.Mutter.DisplayConfig.PowerSave \
-            int32:1 >/dev/null
-
-        if [[ $? -eq 0 ]]; then
-            log "Display turned off using dbus-send"
-        else
-            log "Failed to turn off display using dbus-send"
-        fi
+        log "Failed to turn off display using gdbus"
     fi
 }
 
 # Funktion zum Einschalten des Displays
 turn_on_display() {
-    local gnome_version=$(get_gnome_version)
-
-    log "GNOME Version: $gnome_version"
-
-    if [[ -z "$gnome_version" ]]; then
-        log "GNOME Shell Version konnte nicht ermittelt werden."
-        return 1
-    fi
-
     # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
-    if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
-        log "Using gdbus for turning on the display (GNOME >= 3.36)..."
-        gdbus call --session \
-            --dest org.gnome.Mutter.DisplayConfig \
-            --object-path /org/gnome/Mutter/DisplayConfig \
-            --method org.gnome.Mutter.DisplayConfig.PowerSave \
-            int32:0 >/dev/null
+    log "Using gdbus for turning on the display (GNOME >= 3.36)..."
+    gdbus call --session \
+        --dest org.gnome.Mutter.DisplayConfig \
+        --object-path /org/gnome/Mutter/DisplayConfig \
+        --method org.gnome.Mutter.DisplayConfig.PowerSave \
+        int32:0 >/dev/null
 
-        if [[ $? -eq 0 ]]; then
-            log "Display turned on using gdbus"
-        else
-            log "Failed to turn on display using gdbus"
-        fi
+    if [[ $? -eq 0 ]]; then
+        log "Display turned on using gdbus"
     else
-        # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
-        log "Using dbus-send for turning on the display (GNOME < 3.36)..."
-        dbus-send --session \
-            --dest=org.gnome.Mutter.DisplayConfig \
-            --type=method_call \
-            /org/gnome/Mutter/DisplayConfig \
-            org.gnome.Mutter.DisplayConfig.PowerSave \
-            int32:0 >/dev/null
-
-        if [[ $? -eq 0 ]]; then
-            log "Display turned on using dbus-send"
-        else
-            log "Failed to turn on display using dbus-send"
-        fi
+        log "Failed to turn on display using gdbus"
     fi
 }
 
