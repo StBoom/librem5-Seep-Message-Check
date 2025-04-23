@@ -30,62 +30,98 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
-turn_off_display_alt() {
-    log "Turning off display"
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.ScreenSaver \
-        --object-path /org/gnome/ScreenSaver \
-        --method org.gnome.ScreenSaver.SetActive true >/dev/null
+#!/bin/bash
+
+# Funktion zur Überprüfung der GNOME Version
+get_gnome_version() {
+    gnome_version=$(gnome-shell --version 2>/dev/null | awk '{print $3}')
+    echo "$gnome_version"
 }
 
+# Funktion zum Ausschalten des Displays
 turn_off_display() {
-    local max_attempts=3
-    local attempt=1
-    local success=0
+    local gnome_version=$(get_gnome_version)
 
-    log "Attempting to turn off display (Wayland)..."
+    echo "GNOME Version: $gnome_version"
 
-    while (( attempt <= max_attempts )); do
-        log "Display off attempt $attempt..."
-        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-            gdbus call --session \
-            --dest org.gnome.ScreenSaver \
-            --object-path /org/gnome/ScreenSaver \
-            --method org.gnome.ScreenSaver.SetActive true >/dev/null 2>&1
+    if [[ -z "$gnome_version" ]]; then
+        echo "GNOME Shell Version konnte nicht ermittelt werden."
+        return 1
+    fi
 
-        # Warte einen Moment und prüfe, ob der ScreenSaver aktiv ist
-        local is_active
-        is_active=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-            gdbus call --session \
-            --dest org.gnome.ScreenSaver \
-            --object-path /org/gnome/ScreenSaver \
-            --method org.gnome.ScreenSaver.GetActive 2>/dev/null | grep -q "true" && echo "yes" || echo "no")
+    # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
+    if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
+        echo "Using gdbus for turning off the display (GNOME >= 3.36)..."
+        gdbus call --session \
+            --dest org.gnome.Mutter.DisplayConfig \
+            --object-path /org/gnome/Mutter/DisplayConfig \
+            --method org.gnome.Mutter.DisplayConfig.PowerSave \
+            int32:1 >/dev/null
 
-        if [[ "$is_active" == "yes" ]]; then
-            log "Display off confirmed on attempt $attempt."
-            success=1
-            break
+        if [[ $? -eq 0 ]]; then
+            echo "Display turned off using gdbus"
         else
-            log "Display off attempt $attempt failed."
-            sleep 1
+            echo "Failed to turn off display using gdbus"
         fi
+    else
+        # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
+        echo "Using dbus-send for turning off the display (GNOME < 3.36)..."
+        dbus-send --session \
+            --dest=org.gnome.Mutter.DisplayConfig \
+            --type=method_call \
+            /org/gnome/Mutter/DisplayConfig \
+            org.gnome.Mutter.DisplayConfig.PowerSave \
+            int32:1 >/dev/null
 
-        ((attempt++))
-    done
-
-    if [[ "$success" -eq 0 ]]; then
-        log "[WARNING] Failed to turn off display after $max_attempts attempts."
+        if [[ $? -eq 0 ]]; then
+            echo "Display turned off using dbus-send"
+        else
+            echo "Failed to turn off display using dbus-send"
+        fi
     fi
 }
 
+# Funktion zum Einschalten des Displays
 turn_on_display() {
-    log "Turning on display"
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    local gnome_version=$(get_gnome_version)
+
+    echo "GNOME Version: $gnome_version"
+
+    if [[ -z "$gnome_version" ]]; then
+        echo "GNOME Shell Version konnte nicht ermittelt werden."
+        return 1
+    fi
+
+    # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
+    if [[ "$(printf '%s\n' "$gnome_version" "3.36" | sort -V | head -n1)" == "3.36" ]]; then
+        echo "Using gdbus for turning on the display (GNOME >= 3.36)..."
         gdbus call --session \
-        --dest org.gnome.ScreenSaver \
-        --object-path /org/gnome/ScreenSaver \
-        --method org.gnome.ScreenSaver.SetActive false >/dev/null
+            --dest org.gnome.Mutter.DisplayConfig \
+            --object-path /org/gnome/Mutter/DisplayConfig \
+            --method org.gnome.Mutter.DisplayConfig.PowerSave \
+            int32:0 >/dev/null
+
+        if [[ $? -eq 0 ]]; then
+            echo "Display turned on using gdbus"
+        else
+            echo "Failed to turn on display using gdbus"
+        fi
+    else
+        # Für GNOME-Versionen unter 3.36 verwenden wir weiterhin dbus-send
+        echo "Using dbus-send for turning on the display (GNOME < 3.36)..."
+        dbus-send --session \
+            --dest=org.gnome.Mutter.DisplayConfig \
+            --type=method_call \
+            /org/gnome/Mutter/DisplayConfig \
+            org.gnome.Mutter.DisplayConfig.PowerSave \
+            int32:0 >/dev/null
+
+        if [[ $? -eq 0 ]]; then
+            echo "Display turned on using dbus-send"
+        else
+            echo "Failed to turn on display using dbus-send"
+        fi
+    fi
 }
 
 use_fbcli() {
@@ -112,7 +148,6 @@ handle_notification_actions() {
     fi
 }
 
-
 is_quiet_hours() {
     local test_time="$1"
     local now
@@ -127,16 +162,24 @@ is_quiet_hours() {
     local start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
     local end_ts
 
+    # Wenn QUIET_HOURS_END nach Mitternacht geht
     if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
+        # Ruhezeit geht am selben Tag zu Ende
         end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
     else
+        # Ruhezeit geht über Mitternacht hinaus
         end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
     fi
 
+    echo "Current time: $(date -d @$now)"
+    echo "Start time: $(date -d @$start_ts)"
+    echo "End time: $(date -d @$end_ts)"
+
+    # Überprüfen, ob wir uns in den ruhigen Stunden befinden
     if (( now >= start_ts && now < end_ts )); then
-        return 0
+        return 0  # In den ruhigen Stunden
     else
-        return 1
+        return 1  # Nicht in den ruhigen Stunden
     fi
 }
 
