@@ -58,5 +58,3 @@ if [[ "$remove_ts" =~ ^[Yy]$ ]]; then
 fi
 
 echo "Uninstallation complete."
-
-EOF
