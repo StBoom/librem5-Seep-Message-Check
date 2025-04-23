@@ -300,8 +300,6 @@ if [[ "$MODE" == "pre" ]]; then
     set_rtc_wakeup
     log "Pre-mode done."
     log "===== wakeup-check.sh finished ====="
-    systemctl suspend &
-    disown
     exit 0
 fi
 
