@@ -8,7 +8,7 @@ StopWhenUnneeded=true
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
 ExecStartPost=/bin/sleep 2s
-ExecStopPost=/bin/systemctl suspend
+#ExecStopPost=/bin/systemctl suspend
 
 [Install]
 WantedBy=sleep.target
