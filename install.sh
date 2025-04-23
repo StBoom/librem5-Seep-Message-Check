@@ -100,3 +100,4 @@ systemctl daemon-reload
 
 # Enable services to start on suspend
 echo "Enabling systemd services
+EOF
