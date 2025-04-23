@@ -3,7 +3,7 @@
 # Installer for Wakeup Check Service
 
 # Define paths
-SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
+SCRIPT_PATH="/usr/local/bin/"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
