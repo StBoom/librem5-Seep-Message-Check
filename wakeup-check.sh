@@ -31,35 +31,30 @@ log() {
 }
 
 turn_off_display() {
-# Funktion zum Ausschalten des Displays
-    log "Using gdbus for turning off the display (GNOME >= 3.36)..."
-    gdbus call --session \
-        --dest org.gnome.Mutter.DisplayConfig \
-        --object-path /org/gnome/Mutter/DisplayConfig \
-        --method org.gnome.Mutter.DisplayConfig.PowerSave \
-        int32:1 >/dev/null
+    log "Turning off display (via GNOME ScreenSaver D-Bus)..."
 
-    if [[ $? -eq 0 ]]; then
-        log "Display turned off using gdbus"
+    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gdbus call --session \
+        --dest org.gnome.ScreenSaver \
+        --object-path /org/gnome/ScreenSaver \
+        --method org.gnome.ScreenSaver.SetActive true >/dev/null; then
+        log "Display locked via org.gnome.ScreenSaver.SetActive(true)"
     else
-        log "Failed to turn off display using gdbus"
+        log "Failed to lock display via gdbus"
     fi
 }
 
-# Funktion zum Einschalten des Displays
 turn_on_display() {
-    # Prüfen, ob die Version >= 3.36 ist, dann gdbus verwenden
-    log "Using gdbus for turning on the display (GNOME >= 3.36)..."
-    gdbus call --session \
-        --dest org.gnome.Mutter.DisplayConfig \
-        --object-path /org/gnome/Mutter/DisplayConfig \
-        --method org.gnome.Mutter.DisplayConfig.PowerSave \
-        int32:0 >/dev/null
+    log "Turning on display (via GNOME ScreenSaver D-Bus)..."
 
-    if [[ $? -eq 0 ]]; then
-        log "Display turned on using gdbus"
+    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gdbus call --session \
+        --dest org.gnome.ScreenSaver \
+        --object-path /org/gnome/ScreenSaver \
+        --method org.gnome.ScreenSaver.SetActive false >/dev/null; then
+        log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
     else
-        log "Failed to turn on display using gdbus"
+        log "Failed to unlock display via gdbus"
     fi
 }
 
