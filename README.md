@@ -47,10 +47,26 @@ Key Points:
 ## installation script
 
 
+### 1. Git clone and start install
+
 ```bash
 git clone https://github.com/StBoom/librem5-Seep-Message-Check.git
 sudo bash install.sh
 ```
+
+### 2. Customize Configuration
+
+Edit the wakeup-check.conf file to adjust the settings to your preference. The key configuration options you can modify are:
+
+    TARGET_USER: Set this to your actual username for user-specific settings.
+
+    NOTIFICATION_MODE: Defines which notifications are handled. You can set it to all or define a specific whitelist of applications.
+
+    RTC wake-up time and window: Configure how long the system should wait before waking up and the window of time for RTC wake detection.
+
+    Quiet hours: Customize the hours during which the system suppresses notifications.
+
+After editing the configuration file, save the changes.
 
 ## Manual installation
 
