@@ -5,56 +5,77 @@
 # Define paths
 SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
-WAKE_DIR="/var/lib/wakeup-check"
-WAKE_TIMESTAMP_FILE="$WAKE_DIR/last_wake_timestamp"
-CONFIG_FILE="/etc/wakeup-check.conf"
+WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
+TIMESTAMP_DIR="/var/lib/wakeup-check"
+SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
+SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
+CONFIG_PATH="/etc/wakeup-check.conf"
 
-echo "=== Uninstalling Wakeup Check Service ==="
+echo "Stopping and disabling systemd services..."
 
-# Stop systemd services
-echo "Stopping systemd services..."
-systemctl stop wakeup-check-pre.service
-systemctl stop wakeup-check-post.service
-
-# Disable services
-echo "Disabling systemd services..."
-systemctl disable wakeup-check-pre.service
-systemctl disable wakeup-check-post.service
+systemctl disable --now wakeup-check-pre.service 2>/dev/null
+systemctl disable --now wakeup-check-post.service 2>/dev/null
 
 # Remove systemd service files
-echo "Removing systemd unit files..."
-rm -f /etc/systemd/system/wakeup-check-pre.service
-rm -f /etc/systemd/system/wakeup-check-post.service
+if [ -f "$SERVICE_PRE_PATH" ]; then
+    echo "Removing $SERVICE_PRE_PATH..."
+    rm "$SERVICE_PRE_PATH"
+else
+    echo "$SERVICE_PRE_PATH not found."
+fi
 
-# Reload systemd
+if [ -f "$SERVICE_POST_PATH" ]; then
+    echo "Removing $SERVICE_POST_PATH..."
+    rm "$SERVICE_POST_PATH"
+else
+    echo "$SERVICE_POST_PATH not found."
+fi
+
+# Reload systemd daemon
 echo "Reloading systemd daemon..."
+systemctl daemon-reexec
 systemctl daemon-reload
 
-# Remove main script
+# Remove script
 if [ -f "$SCRIPT_PATH" ]; then
-    echo "Removing script at $SCRIPT_PATH..."
-    rm -f "$SCRIPT_PATH"
+    echo "Removing $SCRIPT_PATH..."
+    rm "$SCRIPT_PATH"
+else
+    echo "$SCRIPT_PATH not found."
 fi
 
-# Prompt before removing config and data
-read -p "Do you want to remove the config file at $CONFIG_FILE? [y/N]: " remove_config
-if [[ "$remove_config" =~ ^[Yy]$ ]]; then
-    rm -f "$CONFIG_FILE"
-    echo "Config file removed."
+# Remove log file
+if [ -f "$LOG_FILE" ]; then
+    echo "Removing $LOG_FILE..."
+    rm "$LOG_FILE"
+else
+    echo "$LOG_FILE not found."
 fi
 
-read -p "Do you want to remove the log file at $LOG_FILE? [y/N]: " remove_log
-if [[ "$remove_log" =~ ^[Yy]$ ]]; then
-    rm -f "$LOG_FILE"
-    echo "Log file removed."
+# Remove wake timestamp file and directory
+if [ -f "$WAKE_TIMESTAMP_FILE" ]; then
+    echo "Removing $WAKE_TIMESTAMP_FILE..."
+    rm "$WAKE_TIMESTAMP_FILE"
+else
+    echo "$WAKE_TIMESTAMP_FILE not found."
 fi
 
-read -p "Do you want to remove the timestamp file at $WAKE_TIMESTAMP_FILE? [y/N]: " remove_ts
-if [[ "$remove_ts" =~ ^[Yy]$ ]]; then
-    rm -f "$WAKE_TIMESTAMP_FILE"
-    echo "Timestamp file removed."
-    # Remove directory if empty
-    rmdir "$WAKE_DIR" 2>/dev/null && echo "Removed empty directory $WAKE_DIR."
+if [ -d "$TIMESTAMP_DIR" ]; then
+    echo "Removing $TIMESTAMP_DIR if empty..."
+    rmdir "$TIMESTAMP_DIR" 2>/dev/null || echo "Directory not empty, not removed."
+fi
+
+# Remove config file with prompt
+if [ -f "$CONFIG_PATH" ]; then
+    read -p "Do you also want to remove the config file at $CONFIG_PATH? (y/N): " delete_config
+    if [[ "$delete_config" =~ ^[Yy]$ ]]; then
+        rm "$CONFIG_PATH"
+        echo "Config file removed."
+    else
+        echo "Config file kept."
+    fi
+else
+    echo "Config file not found."
 fi
 
 echo "Uninstallation complete."
