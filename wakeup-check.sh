@@ -32,6 +32,7 @@ log() {
 
 #!/bin/bash
 
+turn_off_display() {
 # Funktion zum Ausschalten des Displays
     log "Using gdbus for turning off the display (GNOME >= 3.36)..."
     gdbus call --session \
