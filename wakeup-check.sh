@@ -425,7 +425,7 @@ if [[ "$MODE" == "post" ]]; then
             log "Internet OK"
 
             if monitor_notifications; then
-                #included in message check
+                log "notification"
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
                 log "===== wakeup-check.sh finished (mode: $MODE) ====="
