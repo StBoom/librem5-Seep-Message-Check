@@ -50,67 +50,67 @@ check_dependencies() {
     fi
 }
 
-turn_off_display_screensaver() {
-    log "Turning off display (via GNOME ScreenSaver D-Bus)..."
-
-    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.ScreenSaver \
-        --object-path /org/gnome/ScreenSaver \
-        --method org.gnome.ScreenSaver.SetActive true >/dev/null; then
-        log "Display locked via org.gnome.ScreenSaver.SetActive(true)"
-    else
-        log "Failed to lock display via gdbus"
-    fi
+turn_off_display() {
+    case "$DISPLAY_CONTROL_METHOD" in
+        brightness)
+            log "Turning off display via brightness method..."
+            if [ -f "$BRIGHTNESS_PATH" ]; then
+                SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
+                echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
+                echo 0 > "$BRIGHTNESS_PATH"
+                log "Brightness set to 0, previous value $SAVED_BRIGHTNESS saved."
+            else
+                log "Brightness path $BRIGHTNESS_PATH not found."
+            fi
+            ;;
+        screensaver)
+            log "Turning off display via GNOME ScreenSaver D-Bus..."
+            if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+                gdbus call --session \
+                --dest org.gnome.ScreenSaver \
+                --object-path /org/gnome/ScreenSaver \
+                --method org.gnome.ScreenSaver.SetActive true >/dev/null; then
+                log "Display locked via org.gnome.ScreenSaver.SetActive(true)"
+            else
+                log "Failed to lock display via D-Bus"
+            fi
+            ;;
+        *)
+            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD check config file"
+            ;;
+    esac
 }
 
-turn_on_display_screensaver() {
-    log "Turning on display (via GNOME ScreenSaver D-Bus)..."
-
-    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.ScreenSaver \
-        --object-path /org/gnome/ScreenSaver \
-        --method org.gnome.ScreenSaver.SetActive false >/dev/null; then
-        log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
-    else
-        log "Failed to unlock display via gdbus"
-    fi
+turn_on_display() {
+    case "$DISPLAY_CONTROL_METHOD" in
+        brightness)
+            log "Turning on display via brightness method..."
+            if [ -f "$BRIGHTNESS_SAVE_PATH" ]; then
+                BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
+                echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"
+                log "Restored brightness to $BRIGHTNESS."
+            else
+                log "No saved brightness value found, skipping restore."
+            fi
+            ;;
+        screensaver)
+            log "Turning on display via GNOME ScreenSaver D-Bus..."
+            if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+                gdbus call --session \
+                --dest org.gnome.ScreenSaver \
+                --object-path /org/gnome/ScreenSaver \
+                --method org.gnome.ScreenSaver.SetActive false >/dev/null; then
+                log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
+            else
+                log "Failed to unlock display via D-Bus"
+            fi
+            ;;
+        *)
+            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD check config file"
+            ;;
+    esac
 }
 
-turn_off_display_brightness() {
-    log "Turning off display (setting brightness to 0 via sysfs)..."
-
-    if [[ -f "$BRIGHTNESS_PATH" ]]; then
-        CURRENT_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
-        echo "$CURRENT_BRIGHTNESS" > "$BRIGHTNESS_CACHE"
-        chmod 644 "$BRIGHTNESS_CACHE"
-        log "Saved current brightness ($CURRENT_BRIGHTNESS) to $BRIGHTNESS_CACHE"
-
-        echo 0 > "$BRIGHTNESS_PATH"
-        log "Brightness set to 0"
-    else
-        log "Brightness path $BRIGHTNESS_PATH not found"
-    fi
-}
-
-turn_on_display_brightness() {
-    if [[ -f "$BRIGHTNESS_PATH" ]]; then
-        BRIGHTNESS_VALUE=100  # Fallback-Wert
-
-        if [[ -f "$BRIGHTNESS_CACHE" ]]; then
-            BRIGHTNESS_VALUE=$(cat "$BRIGHTNESS_CACHE")
-            log "Restoring saved brightness: $BRIGHTNESS_VALUE"
-        else
-            log "No saved brightness found, using default: $BRIGHTNESS_VALUE"
-        fi
-
-        echo "$BRIGHTNESS_VALUE" > "$BRIGHTNESS_PATH"
-        log "Brightness restored to $BRIGHTNESS_VALUE"
-    else
-        log "Brightness path $BRIGHTNESS_PATH not found"
-    fi
-}
 
 use_fbcli() {
     if [ "$NOTIFICATION_USE_FBCLI" == "true" ]; then
