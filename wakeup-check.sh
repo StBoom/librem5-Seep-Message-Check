@@ -1,5 +1,4 @@
 #!/bin/bash
-check_dependencies
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -16,20 +15,6 @@ for var in "${REQUIRED_VARS[@]}"; do
         exit 1
     fi
 done
-
-TARGET_UID=$(id -u "$TARGET_USER")
-if [ ! -d "/run/user/${TARGET_UID}" ]; then
-    echo "[ERROR] DBus session for user $TARGET_USER not found"
-    exit 1
-fi
-
-DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
-XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
-
-log() {
-    local msg="$1"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
-}
 
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed)
@@ -48,6 +33,21 @@ check_dependencies() {
         echo "Bitte installiere die fehlenden Abhängigkeiten und versuche es erneut."
         exit 1
     fi
+}
+check_dependencies
+
+TARGET_UID=$(id -u "$TARGET_USER")
+if [ ! -d "/run/user/${TARGET_UID}" ]; then
+    echo "[ERROR] DBus session for user $TARGET_USER not found"
+    exit 1
+fi
+
+DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
+XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
+
+log() {
+    local msg="$1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
 turn_off_display() {
