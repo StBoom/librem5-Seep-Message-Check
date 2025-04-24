@@ -6,7 +6,7 @@
 SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
-BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last-brightness"
+BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
 SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
 SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
 CONFIG_PATH="/etc/wakeup-check.conf"
