@@ -172,6 +172,14 @@ handle_notification_actions() {
     fi
 }
 
+suspend_and_exit() {
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    sync
+    sleep 2
+    systemctl suspend
+    exit 0
+}
+
 is_quiet_hours() {
     local test_time="$1"
     local now
@@ -409,45 +417,35 @@ if [[ "$MODE" == "post" ]]; then
     turn_off_display
     log "System woke up from standby."
     log "Checking for RTC wake..."
-    if is_rtc_wakeup && ! check_alarm_within_minutes; then
+
+    if is_rtc_wakeup; then
         log "RTC wake detected."
-
-        if is_quiet_hours; then
-            log "Currently in quiet hours - suspending again."
-            log "===== wakeup-check.sh finished (mode: $MODE) ====="
-            sync
-            sleep 2
-            systemctl suspend
-            exit 0
-        fi
-
-        if wait_for_internet; then
-            log "Internet OK"
-
-            if monitor_notifications; then
-                log "notification"
-            elif [[ $? -eq 124 ]]; then
-                log "Notification timeout reached - suspending again."
-                log "===== wakeup-check.sh finished (mode: $MODE) ====="
-                sync
-                sleep 2
-                systemctl suspend
-                exit 0
-            else
-                log "Notification monitor exited unexpectedly - suspending."
-                log "===== wakeup-check.sh finished (mode: $MODE) ====="
-                sync
-                sleep 2
-                systemctl suspend
-                exit 0
-            fi
+        
+        if check_alarm_within_minutes; then
+            log "Alarm is coming up soon - staying awake."
+            turn_on_display
         else
-            log "No internet - suspending."
-            log "===== wakeup-check.sh finished (mode: $MODE) ====="
-            sync
-            sleep 2
-            systemctl suspend
-            exit 0
+            if is_quiet_hours; then
+                log "Currently in quiet hours - suspending again."
+                suspend_and_exit
+            fi
+
+            if wait_for_internet; then
+                log "Internet OK"
+
+                if monitor_notifications; then
+                    log "notification"
+                elif [[ $? -eq 124 ]]; then
+                    log "Notification timeout reached - suspending again."
+                    suspend_and_exit
+                else
+                    log "Notification monitor exited unexpectedly - suspending."
+                    suspend_and_exit
+                fi
+            else
+                log "No internet - suspending."
+                suspend_and_exit
+            fi
         fi
     else
         log "Not an RTC wake OR alarm is coming up soon - staying awake."
