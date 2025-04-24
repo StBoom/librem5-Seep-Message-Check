@@ -60,12 +60,18 @@ turn_off_display() {
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
                 log "Current brightness read as: $SAVED_BRIGHTNESS"
 
-                if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
-                    log "Saved brightness value $SAVED_BRIGHTNESS to $BRIGHTNESS_SAVE_PATH"
+                # Only save the brightness value if it's not zero
+                if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
+                    if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
+                        log "Saved brightness value $SAVED_BRIGHTNESS to $BRIGHTNESS_SAVE_PATH"
+                    else
+                        log "Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
+                    fi
                 else
-                    log "Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
+                    log "Current brightness is 0, not saving."
                 fi
 
+                # Turn off the display by setting brightness to 0
                 if echo 0 > "$BRIGHTNESS_PATH"; then
                     log "Brightness successfully set to 0"
                 else
@@ -99,17 +105,29 @@ turn_on_display() {
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
             log "Turning on display via brightness method..."
-            if [ -f "$BRIGHTNESS_SAVE_PATH" ]; then
-                BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
-                log "Read saved brightness value: $BRIGHTNESS"
 
-                if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
-                    log "Restored brightness to $BRIGHTNESS"
+            # Standardwert setzen
+            BRIGHTNESS=100
+
+            if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
+                SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
+                log "Read saved brightness value: $SAVED_BRIGHTNESS"
+
+                # Wenn die gespeicherte Helligkeit 0 ist, behalten wir 100 bei.
+                if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
+                    BRIGHTNESS="$SAVED_BRIGHTNESS"
                 else
-                    log "Failed to restore brightness to $BRIGHTNESS"
+                    log "Saved brightness value is 0, keeping brightness at 100%"
                 fi
             else
-                log "No saved brightness value found at $BRIGHTNESS_SAVE_PATH, skipping restore."
+                log "No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
+            fi
+
+            # Setze die Helligkeit auf den ermittelten Wert
+            if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
+                log "Brightness set to $BRIGHTNESS"
+            else
+                log "Failed to set brightness to $BRIGHTNESS"
             fi
             ;;
         screensaver)
