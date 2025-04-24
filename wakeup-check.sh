@@ -367,6 +367,9 @@ monitor_notifications() {
                 exit 0
             else
                 log "Disallowed notification from: $check_entry"
+                handle_notification_actions
+                log "===== wakeup-check.sh (mode: $MODE) finished ====="
+                kill "$$"
             fi
         fi
     done
@@ -399,8 +402,7 @@ if [[ "$MODE" == "post" ]]; then
             log "Internet OK"
 
             if monitor_notifications; then
-                log "Relevant notification received staying awake"
-                handle_notification_actions
+
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
                 log "===== wakeup-check.sh finished (mode: $MODE) ====="
