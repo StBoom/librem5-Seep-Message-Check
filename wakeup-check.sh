@@ -364,7 +364,7 @@ monitor_notifications() {
 
             if is_whitelisted "$check_entry"; then
                 log "Allowed notification from: $check_entry"
-                kill "$$" 
+                exit 0
             else
                 log "Disallowed notification from: $check_entry"
             fi
