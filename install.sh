@@ -8,6 +8,7 @@ SCRIPT_SOURCE="./$SCRIPT_NAME"
 SCRIPT_PATH="/usr/local/bin/$SCRIPT_NAME"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
+BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last-brightness"
 SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
 SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
 CONFIG_SOURCE="./wakeup-check.conf"
@@ -64,6 +65,15 @@ if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
     echo "Timestamp file created at $WAKE_TIMESTAMP_FILE."
 else
     echo "Timestamp file already exists."
+fi
+
+# Brightness file (to store previous brightness before display off)
+if [ ! -f "$BRIGHTNESS_STORE_FILE" ]; then
+    touch $BRIGHTNESS_STORE_FILE
+    chmod 644 $BRIGHTNESS_STORE_FILE
+    echo "Brightness store file created at $BRIGHTNESS_STORE_FILE with 644 permissions."
+else
+    echo "Brightness store file already exists."
 fi
 
 # Install config file
