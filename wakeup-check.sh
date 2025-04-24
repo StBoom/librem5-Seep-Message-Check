@@ -78,57 +78,39 @@ turn_on_display_sc() {
 }
 
 BRIGHTNESS_CACHE="/var/lib/wakeup-check/last-brightness"
+BRIGHTNESS_PATH="/sys/class/backlight/backlight-dsi/brightness"
 
 turn_off_display() {
-    log "Turning off display (via brightness 0%)..."
+    log "Turning off display (setting brightness to 0 via sysfs)..."
 
-    # Aktuelle Helligkeit auslesen
-    CURRENT_BRIGHTNESS=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.SettingsDaemon.Power \
-        --object-path /org/gnome/SettingsDaemon/Power \
-        --method org.freedesktop.DBus.Properties.Get \
-        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" 2>/dev/null | awk '{print $2}' | tr -d '(),')
-
-    if [[ -n "$CURRENT_BRIGHTNESS" ]]; then
+    if [[ -f "$BRIGHTNESS_PATH" ]]; then
+        CURRENT_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
         echo "$CURRENT_BRIGHTNESS" > "$BRIGHTNESS_CACHE"
         chmod 644 "$BRIGHTNESS_CACHE"
-        log "Saved current brightness ($CURRENT_BRIGHTNESS%) to $BRIGHTNESS_CACHE"
-    else
-        log "Could not read current brightness"
-    fi
+        log "Saved current brightness ($CURRENT_BRIGHTNESS) to $BRIGHTNESS_CACHE"
 
-    # Helligkeit auf 0 setzen
-    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.SettingsDaemon.Power \
-        --object-path /org/gnome/SettingsDaemon/Power \
-        --method org.freedesktop.DBus.Properties.Set \
-        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" variant:int32:0; then
-        log "Display brightness set to 0%"
+        echo 0 > "$BRIGHTNESS_PATH"
+        log "Brightness set to 0"
     else
-        log "Failed to set brightness to 0%"
+        log "Brightness path $BRIGHTNESS_PATH not found"
     fi
 }
 
 turn_on_display() {
-    local brightness_value=100
-    if [[ -f "$BRIGHTNESS_CACHE" ]]; then
-        brightness_value=$(cat "$BRIGHTNESS_CACHE")
-        log "Restoring saved brightness from $BRIGHTNESS_CACHE: ${brightness_value}%"
-    else
-        log "No saved brightness found, using default: ${brightness_value}%"
-    fi
+    if [[ -f "$BRIGHTNESS_PATH" ]]; then
+        BRIGHTNESS_VALUE=100  # Fallback-Wert
 
-    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.SettingsDaemon.Power \
-        --object-path /org/gnome/SettingsDaemon/Power \
-        --method org.freedesktop.DBus.Properties.Set \
-        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" variant:int32:$brightness_value; then
-        log "Display brightness restored to ${brightness_value}%"
+        if [[ -f "$BRIGHTNESS_CACHE" ]]; then
+            BRIGHTNESS_VALUE=$(cat "$BRIGHTNESS_CACHE")
+            log "Restoring saved brightness: $BRIGHTNESS_VALUE"
+        else
+            log "No saved brightness found, using default: $BRIGHTNESS_VALUE"
+        fi
+
+        echo "$BRIGHTNESS_VALUE" > "$BRIGHTNESS_PATH"
+        log "Brightness restored to $BRIGHTNESS_VALUE"
     else
-        log "Failed to restore brightness"
+        log "Brightness path $BRIGHTNESS_PATH not found"
     fi
 }
 
