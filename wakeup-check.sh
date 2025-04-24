@@ -364,14 +364,13 @@ monitor_notifications() {
 
             if is_whitelisted "$check_entry"; then
                 log "Allowed notification from: $check_entry"
-                exit 0
-            else
-                log "Disallowed notification from: $check_entry"
                 handle_notification_actions
                 log "===== wakeup-check.sh (mode: $MODE) finished ====="
                 sync
                 sleep 2
                 kill "$$"
+            else
+                log "Disallowed notification from: $check_entry"
             fi
         fi
     done
