@@ -1,5 +1,5 @@
 #!/bin/bash
-
+check_dependencies
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -28,6 +28,25 @@ XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 log() {
     local msg="$1"
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
+}
+
+check_dependencies() {
+    local dependencies=(logger jq gdbus grep awk sed)
+
+    echo "== Prüfe Abhängigkeiten =="
+
+    local missing=0
+    for dep in "${dependencies[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo "Fehler: '$dep' ist nicht installiert oder nicht im PATH."
+            missing=1
+        fi
+    done
+
+    if [ "$missing" -ne 0 ]; then
+        echo "Bitte installiere die fehlenden Abhängigkeiten und versuche es erneut."
+        exit 1
+    fi
 }
 
 turn_off_display() {
