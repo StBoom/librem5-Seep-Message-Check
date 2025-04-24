@@ -289,24 +289,18 @@ monitor_notifications() {
 MODE="$1"
 log "===== wakeup-check.sh started (mode: $MODE) ====="
 
-if [[ "$MODE" == "pre" ]]; then
-    turn_off_display
-    set_rtc_wakeup
-    log "Pre-mode done."
-    log "===== wakeup-check.sh finished ====="
-    exit 0
-fi
-
 if [[ "$MODE" == "post" ]]; then
     turn_off_display
     log "System woke up from standby."
     log "Checking for RTC wake..."
-
     if is_rtc_wakeup; then
         log "RTC wake detected."
 
         if is_quiet_hours; then
             log "Currently in quiet hours - suspending again."
+            log "===== wakeup-check.sh finished (mode: $MODE) ====="
+            sync
+            sleep 2
             systemctl suspend
             exit 0
         fi
@@ -319,16 +313,24 @@ if [[ "$MODE" == "post" ]]; then
                 handle_notification_actions
             elif [[ $? -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
-                systemctl suspend &
-                disown
+                log "===== wakeup-check.sh finished (mode: $MODE) ====="
+                sync
+                sleep 2
+                systemctl suspend
                 exit 0
             else
                 log "Notification monitor exited unexpectedly - suspending."
+                log "===== wakeup-check.sh finished (mode: $MODE) ====="
+                sync
+                sleep 2
                 systemctl suspend
                 exit 0
             fi
         else
             log "No internet - suspending."
+            log "===== wakeup-check.sh finished (mode: $MODE) ====="
+            sync
+            sleep 2
             systemctl suspend
             exit 0
         fi
@@ -337,7 +339,19 @@ if [[ "$MODE" == "post" ]]; then
         turn_on_display
     fi
 
-    log "===== wakeup-check.sh finished ====="
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    sync
+    sleep 2
+    exit 0
+fi
+
+if [[ "$MODE" == "pre" ]]; then
+    turn_off_display
     sleep 1
+    set_rtc_wakeup
+    log "Pre-mode done."
+    log "===== wakeup-check.sh (mode: $MODE) finished ====="
+    sync
+    sleep 2
     exit 0
 fi
