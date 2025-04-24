@@ -49,7 +49,7 @@ check_dependencies() {
     fi
 }
 
-turn_off_display_sc() {
+turn_off_display_screensaver() {
     log "Turning off display (via GNOME ScreenSaver D-Bus)..."
 
     if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
@@ -63,7 +63,7 @@ turn_off_display_sc() {
     fi
 }
 
-turn_on_display_sc() {
+turn_on_display_screensaver() {
     log "Turning on display (via GNOME ScreenSaver D-Bus)..."
 
     if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
@@ -80,7 +80,7 @@ turn_on_display_sc() {
 BRIGHTNESS_CACHE="/var/lib/wakeup-check/last-brightness"
 BRIGHTNESS_PATH="/sys/class/backlight/backlight-dsi/brightness"
 
-turn_off_display() {
+turn_off_display_brightness() {
     log "Turning off display (setting brightness to 0 via sysfs)..."
 
     if [[ -f "$BRIGHTNESS_PATH" ]]; then
@@ -96,7 +96,7 @@ turn_off_display() {
     fi
 }
 
-turn_on_display() {
+turn_on_display_brightness() {
     if [[ -f "$BRIGHTNESS_PATH" ]]; then
         BRIGHTNESS_VALUE=100  # Fallback-Wert
 
