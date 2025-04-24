@@ -51,14 +51,26 @@ check_dependencies() {
 }
 
 turn_off_display() {
+    log "turn_off_display() called, DISPLAY_CONTROL_METHOD=$DISPLAY_CONTROL_METHOD"
+
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
             log "Turning off display via brightness method..."
             if [ -f "$BRIGHTNESS_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
-                echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
-                echo 0 > "$BRIGHTNESS_PATH"
-                log "Brightness set to 0, previous value $SAVED_BRIGHTNESS saved."
+                log "Current brightness read as: $SAVED_BRIGHTNESS"
+
+                if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
+                    log "Saved brightness value $SAVED_BRIGHTNESS to $BRIGHTNESS_SAVE_PATH"
+                else
+                    log "Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
+                fi
+
+                if echo 0 > "$BRIGHTNESS_PATH"; then
+                    log "Brightness successfully set to 0"
+                else
+                    log "Failed to set brightness to 0"
+                fi
             else
                 log "Brightness path $BRIGHTNESS_PATH not found."
             fi
@@ -76,21 +88,28 @@ turn_off_display() {
             fi
             ;;
         *)
-            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD check config file"
+            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
     esac
 }
 
 turn_on_display() {
+    log "turn_on_display() called, DISPLAY_CONTROL_METHOD=$DISPLAY_CONTROL_METHOD"
+
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
             log "Turning on display via brightness method..."
             if [ -f "$BRIGHTNESS_SAVE_PATH" ]; then
                 BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
-                echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"
-                log "Restored brightness to $BRIGHTNESS."
+                log "Read saved brightness value: $BRIGHTNESS"
+
+                if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
+                    log "Restored brightness to $BRIGHTNESS"
+                else
+                    log "Failed to restore brightness to $BRIGHTNESS"
+                fi
             else
-                log "No saved brightness value found, skipping restore."
+                log "No saved brightness value found at $BRIGHTNESS_SAVE_PATH, skipping restore."
             fi
             ;;
         screensaver)
@@ -106,11 +125,10 @@ turn_on_display() {
             fi
             ;;
         *)
-            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD check config file"
+            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
     esac
 }
-
 
 use_fbcli() {
     if [ "$NOTIFICATION_USE_FBCLI" == "true" ]; then
