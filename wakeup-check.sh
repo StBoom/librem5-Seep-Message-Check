@@ -369,6 +369,8 @@ monitor_notifications() {
                 log "Disallowed notification from: $check_entry"
                 handle_notification_actions
                 log "===== wakeup-check.sh (mode: $MODE) finished ====="
+                sync
+                sleep 2
                 kill "$$"
             fi
         fi
