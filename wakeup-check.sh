@@ -308,6 +308,28 @@ get_next_alarm_time() {
     echo "$alarm_time"
 }
 
+check_alarm_within_minutes() {
+    local next_alarm_ts
+    next_alarm_ts=$(get_next_alarm_time)
+
+    if [[ -z "$next_alarm_ts" || ! "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
+        log "No valid next alarm time found"
+        return 1
+    fi
+
+    local now=$(date +%s)
+    local diff=$(( next_alarm_ts - now ))
+
+    log "Next alarm in $diff seconds (limit: $(( WAKE_BEFORE_ALARM_MINUTES * 60 )) seconds)"
+
+    if (( diff >= 0 && diff <= WAKE_BEFORE_ALARM_MINUTES * 60 )); then
+        log "Alarm within next $WAKE_BEFORE_ALARM_MINUTES minutes detected"
+        return 0
+    fi
+
+    return 1
+}
+
 wait_for_internet() {
     log "Waiting up to $MAX_WAIT seconds for internet..."
     for ((i=0; i<MAX_WAIT; i++)); do
@@ -387,7 +409,7 @@ if [[ "$MODE" == "post" ]]; then
     turn_off_display
     log "System woke up from standby."
     log "Checking for RTC wake..."
-    if is_rtc_wakeup; then
+    if is_rtc_wakeup && ! check_alarm_within_minutes; then
         log "RTC wake detected."
 
         if is_quiet_hours; then
@@ -428,7 +450,7 @@ if [[ "$MODE" == "post" ]]; then
             exit 0
         fi
     else
-        log "Not an RTC wake - staying awake and turning display on."
+        log "Not an RTC wake OR alarm is coming up soon - staying awake."
         turn_on_display
     fi
 
