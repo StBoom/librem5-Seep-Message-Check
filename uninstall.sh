@@ -6,6 +6,7 @@
 SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
+BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last-brightness"
 SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
 SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
 CONFIG_PATH="/etc/wakeup-check.conf"
@@ -33,6 +34,14 @@ if [ -f "$WAKE_TIMESTAMP_FILE" ]; then
     rm "$WAKE_TIMESTAMP_FILE"
 else
     echo "Timestamp file not found at $WAKE_TIMESTAMP_FILE."
+fi
+
+# Remove brightness file
+if [ -f "$BRIGHTNESS_STORE_FILE" ]; then
+    rm -f $BRIGHTNESS_STORE_FILE
+    echo "Removed $BRIGHTNESS_STORE_FILE"
+else
+    echo "$BRIGHTNESS_STORE_FILE not found. Nothing to remove."
 fi
 
 # Remove config file
