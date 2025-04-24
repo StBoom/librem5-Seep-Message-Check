@@ -22,6 +22,7 @@ if [ ! -d "/run/user/${TARGET_UID}" ]; then
     echo "[ERROR] DBus session for user $TARGET_USER not found"
     exit 1
 fi
+
 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
@@ -76,9 +77,6 @@ turn_on_display_screensaver() {
         log "Failed to unlock display via gdbus"
     fi
 }
-
-BRIGHTNESS_CACHE="/var/lib/wakeup-check/last-brightness"
-BRIGHTNESS_PATH="/sys/class/backlight/backlight-dsi/brightness"
 
 turn_off_display_brightness() {
     log "Turning off display (setting brightness to 0 via sysfs)..."
