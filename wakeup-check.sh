@@ -49,7 +49,7 @@ check_dependencies() {
     fi
 }
 
-turn_off_display() {
+turn_off_display_sc() {
     log "Turning off display (via GNOME ScreenSaver D-Bus)..."
 
     if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
@@ -63,7 +63,7 @@ turn_off_display() {
     fi
 }
 
-turn_on_display() {
+turn_on_display_sc() {
     log "Turning on display (via GNOME ScreenSaver D-Bus)..."
 
     if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
@@ -74,6 +74,61 @@ turn_on_display() {
         log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
     else
         log "Failed to unlock display via gdbus"
+    fi
+}
+
+BRIGHTNESS_CACHE="/var/lib/wakeup-check/last-brightness"
+
+turn_off_display() {
+    log "Turning off display (via brightness 0%)..."
+
+    # Aktuelle Helligkeit auslesen
+    CURRENT_BRIGHTNESS=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gdbus call --session \
+        --dest org.gnome.SettingsDaemon.Power \
+        --object-path /org/gnome/SettingsDaemon/Power \
+        --method org.freedesktop.DBus.Properties.Get \
+        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" 2>/dev/null | awk '{print $2}' | tr -d '(),')
+
+    if [[ -n "$CURRENT_BRIGHTNESS" ]]; then
+        echo "$CURRENT_BRIGHTNESS" > "$BRIGHTNESS_CACHE"
+        chmod 644 "$BRIGHTNESS_CACHE"
+        log "Saved current brightness ($CURRENT_BRIGHTNESS%) to $BRIGHTNESS_CACHE"
+    else
+        log "Could not read current brightness"
+    fi
+
+    # Helligkeit auf 0 setzen
+    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gdbus call --session \
+        --dest org.gnome.SettingsDaemon.Power \
+        --object-path /org/gnome/SettingsDaemon/Power \
+        --method org.freedesktop.DBus.Properties.Set \
+        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" variant:int32:0; then
+        log "Display brightness set to 0%"
+    else
+        log "Failed to set brightness to 0%"
+    fi
+}
+
+turn_on_display() {
+    local brightness_value=100
+    if [[ -f "$BRIGHTNESS_CACHE" ]]; then
+        brightness_value=$(cat "$BRIGHTNESS_CACHE")
+        log "Restoring saved brightness from $BRIGHTNESS_CACHE: ${brightness_value}%"
+    else
+        log "No saved brightness found, using default: ${brightness_value}%"
+    fi
+
+    if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gdbus call --session \
+        --dest org.gnome.SettingsDaemon.Power \
+        --object-path /org/gnome/SettingsDaemon/Power \
+        --method org.freedesktop.DBus.Properties.Set \
+        string:"org.gnome.SettingsDaemon.Power.Screen" string:"Brightness" variant:int32:$brightness_value; then
+        log "Display brightness restored to ${brightness_value}%"
+    else
+        log "Failed to restore brightness"
     fi
 }
 
