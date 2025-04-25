@@ -202,8 +202,8 @@ is_quiet_hours() {
         end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
     fi
 
-    log "Current time: $(date -d @$now)"
-    log "Quiet hours: $(date -d @$start_ts) - $(date -d @$end_ts)"
+    #log "Current time: $(date -d @$now)"
+    #log "Quiet hours: $(date -d @$start_ts) - $(date -d @$end_ts)"
 
     if (( now >= start_ts && now < end_ts )); then
         #log "Currently in quiet hours."
@@ -270,7 +270,7 @@ set_rtc_wakeup() {
     if is_quiet_hours; then
         #log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "In cuiet hours, setting wake time to end of quiet hours: $(date -d @$wake_ts)"
+        log "In cuiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
         #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
