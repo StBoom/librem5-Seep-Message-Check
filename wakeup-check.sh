@@ -442,10 +442,8 @@ MODE="$1"
 log "===== wakeup-check.sh started (mode: $MODE) ====="
 turn_off_display
 sleep 2
-if [[ "$MODE" == "post" ]]; then
-    #log "System woke up from standby."
-    #log "Checking for RTC wake..."
 
+if [[ "$MODE" == "post" ]]; then
     if is_rtc_wakeup; then
         log "RTC wake detected."
 
@@ -461,12 +459,12 @@ if [[ "$MODE" == "post" ]]; then
                 monitor_notifications
                 result=$?
                 if [[ $result -eq 0 ]]; then
-                    #log "Notification received from whitelisted app - staying awake"
                     handle_notification_actions
                 elif [[ $result -eq 124 ]]; then
                     log "Notification timeout reached - suspending again."
                     systemctl suspend
                 elif [[ $result -eq 1 ]]; then
+                    log "Notification monitor returned 1 - suspending."
                     systemctl suspend
                 else
                     log "Notification monitor exited unexpectedly - suspending."
@@ -483,12 +481,14 @@ if [[ "$MODE" == "post" ]]; then
     fi
     log "===== wakeup-check.sh finished (mode: $MODE) ====="
     sync
-fi
-
-
-if [[ "$MODE" == "pre" ]]; then
+    exit 0
+elif [[ "$MODE" == "pre" ]]; then
     set_rtc_wakeup
     log "===== wakeup-check.sh finished (mode: $MODE) ====="
     sync
     sleep 2
+    exit 0
+else
+    log "[ERROR] Unknown mode: $MODE"
+    exit 1
 fi
