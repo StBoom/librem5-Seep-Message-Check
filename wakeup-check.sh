@@ -457,34 +457,38 @@ if [[ "$MODE" == "post" ]]; then
 
     if is_rtc_wakeup; then
         log "RTC wake detected."
-        
+
         if check_alarm_within_minutes; then
             log "Alarm is coming up soon - staying awake."
             turn_on_display
-        else
-            if is_quiet_hours; then
-                log "Currently in quiet hours - suspending again."
-                suspend_and_exit
-            fi
+            exit 0
+        fi
 
-            if wait_for_internet; then
-                log "Internet connection detected"
-                if monitor_notifications; then
-                    #log "Notification received from whitelisted app - staying awake"
-                    handle_notification_actions
-                elif [[ $? -eq 124 ]]; then
-                    log "Notification timeout reached - suspending again."
-                    suspend_and_exit
-                elif [[ $? -eq 1 ]]; then
-                    suspend_and_exit
-                else
-                    log "Notification monitor exited unexpectedly - suspending."
-                    suspend_and_exit
-                fi
+        if is_quiet_hours; then
+            log "Currently in quiet hours - suspending again."
+            suspend_and_exit
+            exit 0
+        fi
+
+        if wait_for_internet; then
+            log "Internet connection detected"
+            monitor_notifications
+            result=$?
+            if [[ $result -eq 0 ]]; then
+                #log "Notification received from whitelisted app - staying awake"
+                handle_notification_actions
+            elif [[ $result -eq 124 ]]; then
+                log "Notification timeout reached - suspending again."
+                suspend_and_exit
+            elif [[ $result -eq 1 ]]; then
+                suspend_and_exit
             else
-                log "[WARNING] No internet connection detected suspending"
+                log "Notification monitor exited unexpectedly - suspending."
                 suspend_and_exit
             fi
+        else
+            log "[WARNING] No internet connection detected - suspending"
+            suspend_and_exit
         fi
     else
         log "Not an RTC wake."
@@ -493,7 +497,6 @@ if [[ "$MODE" == "post" ]]; then
 fi
 
 if [[ "$MODE" == "pre" ]]; then
-    turn_off_display
     set_rtc_wakeup
     log "===== wakeup-check.sh finished (mode: $MODE) ====="
     sync
