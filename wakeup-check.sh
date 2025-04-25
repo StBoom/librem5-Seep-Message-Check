@@ -164,14 +164,6 @@ handle_notification_actions() {
         log "Calling fbcli due to notification..."
         use_fbcli
     fi
-}
-
-suspend_and_exit() {
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
-    sync
-    sleep 2
-    systemctl suspend
-}
 
 is_quiet_hours() {
     local test_time="$1"
@@ -460,44 +452,40 @@ if [[ "$MODE" == "post" ]]; then
         if check_alarm_within_minutes; then
             log "Alarm is coming up soon - staying awake."
             turn_on_display
-            log "===== wakeup-check.sh finished (mode: $MODE) ====="
-            exit 0
-        fi
-
-        if is_quiet_hours; then
+        elif is_quiet_hours; then
             log "Currently in quiet hours - suspending again."
-            suspend_and_exit
-            exit 0
-        fi
-
-        if wait_for_internet; then
-            log "Internet connection detected"
-            monitor_notifications
-            result=$?
-            if [[ $result -eq 0 ]]; then
-                #log "Notification received from whitelisted app - staying awake"
-                handle_notification_actions
-                log "===== wakeup-check.sh finished (mode: $MODE) ====="
-                sleep 2
-            elif [[ $result -eq 124 ]]; then
-                log "Notification timeout reached - suspending again."
-                suspend_and_exit
-            elif [[ $result -eq 1 ]]; then
-                suspend_and_exit
-            else
-                log "Notification monitor exited unexpectedly - suspending."
-                suspend_and_exit
-            fi
+            systemctl suspend
         else
-            log "[WARNING] No internet connection detected - suspending"
-            suspend_and_exit
+            if wait_for_internet; then
+                log "Internet connection detected"
+                monitor_notifications
+                result=$?
+                if [[ $result -eq 0 ]]; then
+                    #log "Notification received from whitelisted app - staying awake"
+                    handle_notification_actions
+                elif [[ $result -eq 124 ]]; then
+                    log "Notification timeout reached - suspending again."
+                    systemctl suspend
+                elif [[ $result -eq 1 ]]; then
+                    systemctl suspend
+                else
+                    log "Notification monitor exited unexpectedly - suspending."
+                    systemctl suspend
+                fi
+            else
+                log "[WARNING] No internet connection detected - suspending"
+                systemctl suspend
+            fi
         fi
     else
         log "Not an RTC wake."
         turn_on_display
-        log "===== wakeup-check.sh finished (mode: $MODE) ====="
     fi
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    sync
+    sleep 2
 fi
+
 
 if [[ "$MODE" == "pre" ]]; then
     set_rtc_wakeup
