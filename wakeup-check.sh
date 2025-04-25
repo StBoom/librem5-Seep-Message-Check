@@ -58,12 +58,10 @@ turn_off_display() {
             #log "Turning off display via brightness method..."
             if [ -f "$BRIGHTNESS_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
-                log "Current brightness read as: $SAVED_BRIGHTNESS"
-
                 # Only save the brightness value if it's not zero
                 if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
                     if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
-                        log "Saved brightness value $SAVED_BRIGHTNESS to $BRIGHTNESS_SAVE_PATH"
+                        log "Saved current brightness value $SAVED_BRIGHTNESS"
                     else
                         log "Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
                     fi
@@ -205,14 +203,13 @@ is_quiet_hours() {
     fi
 
     log "Current time: $(date -d @$now)"
-    log "Quiet hours start: $(date -d @$start_ts)"
-    log "Quiet hours end: $(date -d @$end_ts)"
+    log "Quiet hours: $(date -d @$start_ts) - $(date -d @$end_ts)"
 
     if (( now >= start_ts && now < end_ts )); then
-        log "Currently in quiet hours."
+        #log "Currently in quiet hours."
         return 0
     else
-        log "Not in quiet hours."
+        #log "Not in quiet hours."
         return 1
     fi
 }
@@ -235,10 +232,10 @@ is_rtc_wakeup() {
     diff=$((rtc_now - timestamp_file_ts))
 
     if (( diff >= 0 && diff <= RTC_WAKE_WINDOW_SECONDS )); then
-        log "RTC wake confirmed"
+        #log "RTC wake confirmed"
         return 0
     else
-        log "Not an RTC wake"
+        #log "Not an RTC wake"
         return 1
     fi
 }
@@ -249,7 +246,7 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+    #log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
@@ -260,7 +257,7 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    #log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
