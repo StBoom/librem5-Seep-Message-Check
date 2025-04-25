@@ -449,10 +449,11 @@ monitor_notifications() {
 
 # ---------- MAIN ----------
 MODE="$1"
+turn_off_display
+sleep 2
 log "===== wakeup-check.sh started (mode: $MODE) ====="
 
 if [[ "$MODE" == "post" ]]; then
-    turn_off_display
     #log "System woke up from standby."
     #log "Checking for RTC wake..."
 
@@ -491,20 +492,15 @@ if [[ "$MODE" == "post" ]]; then
         log "Not an RTC wake."
         turn_on_display
     fi
-
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
-    sync
-    sleep 2
     exit 0
 fi
 
 if [[ "$MODE" == "pre" ]]; then
     turn_off_display
-    sleep 1
     set_rtc_wakeup
-    log "Pre-mode done."
-    log "===== wakeup-check.sh (mode: $MODE) finished ====="
-    sync
-    sleep 2
     exit 0
 fi
+
+log "===== wakeup-check.sh finished (mode: $MODE) ====="
+sync
+sleep 2
