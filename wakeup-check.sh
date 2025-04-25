@@ -1,8 +1,12 @@
 #!/bin/bash
+log() {
+    local msg="$1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
+}
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "[ERROR] Missing config file: $CONFIG_FILE"
+    log "[ERROR] Missing config file: $CONFIG_FILE"
     exit 1
 fi
 source "$CONFIG_FILE"
@@ -11,26 +15,22 @@ source "$CONFIG_FILE"
 REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT)
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var}" ]; then
-        echo "[ERROR] Required config variable '$var' is not set."
+        log "[ERROR] Required config variable '$var' is not set."
         exit 1
     fi
 done
 
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed)
-
-    echo "== Prüfe Abhängigkeiten =="
-
     local missing=0
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
-            echo "Fehler: '$dep' ist nicht installiert oder nicht im PATH."
+            log "[ERROR] '$dep' ist nicht installiert oder nicht im PATH."
             missing=1
         fi
     done
-
     if [ "$missing" -ne 0 ]; then
-        echo "Bitte installiere die fehlenden Abhängigkeiten und versuche es erneut."
+        log "[ERROR] installiere die fehlenden Abhängigkeiten und versuche es erneut."
         exit 1
     fi
 }
@@ -38,21 +38,17 @@ check_dependencies
 
 TARGET_UID=$(id -u "$TARGET_USER")
 if [ ! -d "/run/user/${TARGET_UID}" ]; then
-    echo "[ERROR] DBus session for user $TARGET_USER not found"
+    log "[ERROR] DBus session for user $TARGET_USER not found"
     exit 1
 fi
 
 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
-log() {
-    local msg="$1"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
-}
+
 
 turn_off_display() {
     log "turn_off_display($DISPLAY_CONTROL_METHOD)"
-
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
             #log "Turning off display via brightness method..."
@@ -63,7 +59,7 @@ turn_off_display() {
                     if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
                         log "Saved current brightness value $SAVED_BRIGHTNESS"
                     else
-                        log "Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
+                        log "[ERROR] Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
                     log "Current brightness is 0, not saving."
@@ -73,10 +69,10 @@ turn_off_display() {
                 if echo 0 > "$BRIGHTNESS_PATH"; then
                     log "Brightness successfully set to 0"
                 else
-                    log "Failed to set brightness to 0"
+                    log "[ERROR] Failed to set brightness to 0"
                 fi
             else
-                log "Brightness path $BRIGHTNESS_PATH not found."
+                log "[ERROR] Brightness path $BRIGHTNESS_PATH not found."
             fi
             ;;
         screensaver)
@@ -88,11 +84,11 @@ turn_off_display() {
                 --method org.gnome.ScreenSaver.SetActive true >/dev/null; then
                 log "Display locked via org.gnome.ScreenSaver.SetActive(true)"
             else
-                log "Failed to lock display via D-Bus"
+                log "[ERROR] Failed to lock display via D-Bus"
             fi
             ;;
         *)
-            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
+            log "[ERROR] Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
     esac
 }
@@ -118,14 +114,14 @@ turn_on_display() {
                     log "Saved brightness value is 0, keeping brightness at 100%"
                 fi
             else
-                log "No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
+                log "[ERROR] No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
             fi
 
             # Setze die Helligkeit auf den ermittelten Wert
             if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
                 log "Brightness set to $BRIGHTNESS"
             else
-                log "Failed to set brightness to $BRIGHTNESS"
+                log "[ERROR] Failed to set brightness to $BRIGHTNESS"
             fi
             ;;
         screensaver)
@@ -137,11 +133,11 @@ turn_on_display() {
                 --method org.gnome.ScreenSaver.SetActive false >/dev/null; then
                 log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
             else
-                log "Failed to unlock display via D-Bus"
+                log "[ERROR] Failed to unlock display via D-Bus"
             fi
             ;;
         *)
-            log "Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
+            log "[ERROR] Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
     esac
 }
@@ -153,7 +149,7 @@ use_fbcli() {
             sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
             sudo -u "$TARGET_USER" fbcli -E message-new-instant
         else
-            log "fbcli not found, skipping fbcli notifications"
+            log "[ERROR] fbcli not found, skipping fbcli notifications"
         fi
     fi
 }
@@ -216,7 +212,7 @@ is_quiet_hours() {
 
 is_rtc_wakeup() {
     if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
-        log "No wake timestamp file found"
+        log "[ERROR] No wake timestamp file found"
         return 1
     fi
 
@@ -225,7 +221,7 @@ is_rtc_wakeup() {
     timestamp_file_ts=$(cat "$WAKE_TIMESTAMP_FILE")
 
     if ! [[ "$timestamp_file_ts" =~ ^[0-9]+$ ]]; then
-        log "Invalid timestamp in file: $WAKE_TIMESTAMP_FILE"
+        log "[ERROR] Invalid timestamp in file: $WAKE_TIMESTAMP_FILE"
         return 1
     fi
 
@@ -306,7 +302,7 @@ set_rtc_wakeup() {
         log "RTC wakealarm and saved timestamp match"
         log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
-        log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
+        log "[ERROR] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
     fi
 }
 
@@ -355,10 +351,10 @@ wait_for_internet() {
     done
 
     if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null; then
-        log "Ping successful - internet likely available"
+        #log "Ping successful - internet likely available"
         return 0
     fi
-    log "No internet connection detected"
+    #log "[WARNING] No internet connection detected"
     return 1
 }
 
@@ -473,7 +469,7 @@ if [[ "$MODE" == "post" ]]; then
             fi
 
             if wait_for_internet; then
-                log "Internet OK"
+                log "Internet connection detected"
                 if monitor_notifications; then
                     #log "Notification received from whitelisted app - staying awake"
                     handle_notification_actions
@@ -487,7 +483,7 @@ if [[ "$MODE" == "post" ]]; then
                     suspend_and_exit
                 fi
             else
-                log "No internet - suspending."
+                log "[WARNING] No internet connection detected suspending"
                 suspend_and_exit
             fi
         fi
