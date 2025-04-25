@@ -45,8 +45,6 @@ fi
 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
-
-
 turn_off_display() {
     log "turn_off_display($DISPLAY_CONTROL_METHOD)"
     case "$DISPLAY_CONTROL_METHOD" in
@@ -164,6 +162,7 @@ handle_notification_actions() {
         log "Calling fbcli due to notification..."
         use_fbcli
     fi
+}
 
 is_quiet_hours() {
     local test_time="$1"
