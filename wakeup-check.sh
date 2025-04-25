@@ -483,7 +483,6 @@ if [[ "$MODE" == "post" ]]; then
     fi
     log "===== wakeup-check.sh finished (mode: $MODE) ====="
     sync
-    sleep 2
 fi
 
 
