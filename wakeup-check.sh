@@ -109,7 +109,7 @@ turn_on_display() {
 
             if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
-                log "Read saved brightness value: $SAVED_BRIGHTNESS"
+                #log "Read saved brightness value: $SAVED_BRIGHTNESS"
 
                 # Wenn die gespeicherte Helligkeit 0 ist, behalten wir 100 bei.
                 if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
@@ -417,8 +417,8 @@ log "===== wakeup-check.sh started (mode: $MODE) ====="
 
 if [[ "$MODE" == "post" ]]; then
     turn_off_display
-    log "System woke up from standby."
-    log "Checking for RTC wake..."
+    #log "System woke up from standby."
+    #log "Checking for RTC wake..."
 
     if is_rtc_wakeup; then
         log "RTC wake detected."
