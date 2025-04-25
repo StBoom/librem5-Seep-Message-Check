@@ -51,11 +51,11 @@ log() {
 }
 
 turn_off_display() {
-    log "turn_off_display() called, DISPLAY_CONTROL_METHOD=$DISPLAY_CONTROL_METHOD"
+    log "turn_off_display($DISPLAY_CONTROL_METHOD)"
 
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
-            log "Turning off display via brightness method..."
+            #log "Turning off display via brightness method..."
             if [ -f "$BRIGHTNESS_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
                 log "Current brightness read as: $SAVED_BRIGHTNESS"
@@ -82,7 +82,7 @@ turn_off_display() {
             fi
             ;;
         screensaver)
-            log "Turning off display via GNOME ScreenSaver D-Bus..."
+            #log "Turning off display via GNOME ScreenSaver D-Bus..."
             if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
                 gdbus call --session \
                 --dest org.gnome.ScreenSaver \
@@ -100,11 +100,11 @@ turn_off_display() {
 }
 
 turn_on_display() {
-    log "turn_on_display() called, DISPLAY_CONTROL_METHOD=$DISPLAY_CONTROL_METHOD"
+    log "turn_on_display($DISPLAY_CONTROL_METHOD)"
 
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
-            log "Turning on display via brightness method..."
+            #log "Turning on display via brightness method..."
 
             # Standardwert setzen
             BRIGHTNESS=100
@@ -131,7 +131,7 @@ turn_on_display() {
             fi
             ;;
         screensaver)
-            log "Turning on display via GNOME ScreenSaver D-Bus..."
+            #log "Turning on display via GNOME ScreenSaver D-Bus..."
             if sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
                 gdbus call --session \
                 --dest org.gnome.ScreenSaver \
@@ -228,7 +228,7 @@ is_rtc_wakeup() {
     timestamp_file_ts=$(cat "$WAKE_TIMESTAMP_FILE")
 
     if ! [[ "$timestamp_file_ts" =~ ^[0-9]+$ ]]; then
-        log "Invalid timestamp in file: $timestamp_file_ts"
+        log "Invalid timestamp in file: $WAKE_TIMESTAMP_FILE"
         return 1
     fi
 
@@ -249,8 +249,7 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    log "Setting RTC Wakeup"
-    log "Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+    log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
@@ -261,8 +260,7 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    log "Quiet hours start: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S')"
-    log "Quiet hours end:   $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
@@ -278,7 +276,7 @@ set_rtc_wakeup() {
         log "Setting wake time to end of quiet hours: $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
+        #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
@@ -287,6 +285,12 @@ set_rtc_wakeup() {
         wake_ts=$adjusted_wake_ts
     fi
 
+    
+    if ! echo "$wake_ts" | grep -q '^[0-9]\+$'; then
+        log "[ERROR] Invalid wake_ts: $wake_ts"
+        exit 1
+    fi
+    
     if ! echo "$wake_ts" > "$WAKE_TIMESTAMP_FILE"; then
         log "[ERROR] Failed to write timestamp file: $WAKE_TIMESTAMP_FILE"
         exit 1
@@ -302,6 +306,7 @@ set_rtc_wakeup() {
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
         log "RTC wakealarm and saved timestamp match"
+        log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
     fi
@@ -436,7 +441,8 @@ if [[ "$MODE" == "post" ]]; then
                 log "Internet OK"
 
                 if monitor_notifications; then
-                    log "notification"
+                    log "Notification received from whitelisted app - staying awake"
+                    handle_notification_actions
                 elif [[ $? -eq 124 ]]; then
                     log "Notification timeout reached - suspending again."
                     suspend_and_exit
@@ -450,7 +456,7 @@ if [[ "$MODE" == "post" ]]; then
             fi
         fi
     else
-        log "Not an RTC wake OR alarm is coming up soon - staying awake."
+        log "Not an RTC wake."
         turn_on_display
     fi
 
