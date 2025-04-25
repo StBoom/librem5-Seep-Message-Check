@@ -216,7 +216,7 @@ is_quiet_hours() {
 
 is_rtc_wakeup() {
     if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
-        log "No wake timestamp file found - not an RTC wake."
+        log "No wake timestamp file found"
         return 1
     fi
 
@@ -232,10 +232,10 @@ is_rtc_wakeup() {
     diff=$((rtc_now - timestamp_file_ts))
 
     if (( diff >= 0 && diff <= RTC_WAKE_WINDOW_SECONDS )); then
-        #log "RTC wake confirmed"
+        log "RTC wake confirmed"
         return 0
     else
-        #log "Not an RTC wake"
+        log "Not an RTC wake"
         return 1
     fi
 }
@@ -299,10 +299,11 @@ set_rtc_wakeup() {
     fi
 
     #log "RTC wakealarm set to: $(date -d @$wake_ts)"
-
+    local tsf_actual=$WAKE_TIMESTAMP_FILE
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
-    if [[ "$rtc_actual" == "$wake_ts" ]]; then
-        #log "RTC wakealarm and saved timestamp match"
+    
+    if [[ "$rtc_actual" == "$tsf_actual" ]]; then
+        log "RTC wakealarm and saved timestamp match"
         log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
