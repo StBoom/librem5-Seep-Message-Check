@@ -1,8 +1,6 @@
 #!/bin/bash
-log() {
-    local msg="$1"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
-}
+set -euo pipefail
+
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -10,6 +8,11 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 source "$CONFIG_FILE"
+
+log() {
+    local msg="$1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
+}
 
 # Verify required variables are set
 REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT WAKE_BEFORE_ALARM_MINUTES MAX_WAIT)
