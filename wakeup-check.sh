@@ -268,9 +268,9 @@ set_rtc_wakeup() {
     fi
 
     if is_quiet_hours; then
-        log "Currently in quiet hours"
+        #log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "Setting wake time to end of quiet hours: $(date -d @$wake_ts)"
+        log "In cuiet hours, setting wake time to end of quiet hours: $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
         #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
@@ -298,11 +298,11 @@ set_rtc_wakeup() {
         exit 1
     fi
 
-    log "RTC wakealarm set to: $(date -d @$wake_ts)"
+    #log "RTC wakealarm set to: $(date -d @$wake_ts)"
 
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     if [[ "$rtc_actual" == "$wake_ts" ]]; then
-        log "RTC wakealarm and saved timestamp match"
+        #log "RTC wakealarm and saved timestamp match"
         log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
@@ -347,7 +347,7 @@ wait_for_internet() {
     for ((i=0; i<MAX_WAIT; i++)); do
         status=$(nmcli networking connectivity)
         if [[ "$status" == "full" ]]; then
-            log "Internet connection is available"
+            #log "Internet connection is available"
             return 0
         fi
         sleep 1
@@ -357,7 +357,6 @@ wait_for_internet() {
         log "Ping successful - internet likely available"
         return 0
     fi
-
     log "No internet connection detected"
     return 1
 }
@@ -408,8 +407,7 @@ monitor_notifications() {
             fi
         fi
     done
-
-    log "Notification monitor timed out without match."
+    #log "Notification monitor timed out without match."
     return 124
 }
 
@@ -436,7 +434,6 @@ if [[ "$MODE" == "post" ]]; then
 
             if wait_for_internet; then
                 log "Internet OK"
-
                 if monitor_notifications; then
                     log "Notification received from whitelisted app - staying awake"
                     handle_notification_actions
