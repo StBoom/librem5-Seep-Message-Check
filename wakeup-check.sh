@@ -171,7 +171,6 @@ suspend_and_exit() {
     sync
     sleep 2
     systemctl suspend
-    exit 0
 }
 
 is_quiet_hours() {
@@ -347,7 +346,6 @@ wait_for_internet() {
             #log "Internet connection is available"
             return 0
         fi
-        sleep 1
     done
 
     if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null; then
@@ -492,15 +490,12 @@ if [[ "$MODE" == "post" ]]; then
         log "Not an RTC wake."
         turn_on_display
     fi
-    exit 0
 fi
 
 if [[ "$MODE" == "pre" ]]; then
     turn_off_display
     set_rtc_wakeup
-    exit 0
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    sync
+    sleep 2
 fi
-
-log "===== wakeup-check.sh finished (mode: $MODE) ====="
-sync
-sleep 2
