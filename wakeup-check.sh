@@ -475,10 +475,12 @@ if [[ "$MODE" == "post" ]]; then
             if wait_for_internet; then
                 log "Internet OK"
                 if monitor_notifications; then
-                    log "Notification received from whitelisted app - staying awake"
+                    #log "Notification received from whitelisted app - staying awake"
                     handle_notification_actions
                 elif [[ $? -eq 124 ]]; then
                     log "Notification timeout reached - suspending again."
+                    suspend_and_exit
+                elif [[ $? -eq 1 ]]; then
                     suspend_and_exit
                 else
                     log "Notification monitor exited unexpectedly - suspending."
