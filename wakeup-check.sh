@@ -299,14 +299,14 @@ set_rtc_wakeup() {
     fi
 
     #log "RTC wakealarm set to: $(date -d @$wake_ts)"
-    local tsf_actual=$WAKE_TIMESTAMP_FILE
+    local tsf_actual=$(cat "$WAKE_TIMESTAMP_FILE")
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     
     if [[ "$rtc_actual" == "$tsf_actual" ]]; then
         log "RTC wakealarm and saved timestamp match"
         log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
-        log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, expected: $wake_ts"
+        log "[WARNING] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
     fi
 }
 
