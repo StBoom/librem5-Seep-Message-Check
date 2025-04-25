@@ -447,10 +447,9 @@ monitor_notifications() {
 
 # ---------- MAIN ----------
 MODE="$1"
+log "===== wakeup-check.sh started (mode: $MODE) ====="
 turn_off_display
 sleep 2
-log "===== wakeup-check.sh started (mode: $MODE) ====="
-
 if [[ "$MODE" == "post" ]]; then
     #log "System woke up from standby."
     #log "Checking for RTC wake..."
@@ -461,6 +460,7 @@ if [[ "$MODE" == "post" ]]; then
         if check_alarm_within_minutes; then
             log "Alarm is coming up soon - staying awake."
             turn_on_display
+            log "===== wakeup-check.sh finished (mode: $MODE) ====="
             exit 0
         fi
 
@@ -477,6 +477,8 @@ if [[ "$MODE" == "post" ]]; then
             if [[ $result -eq 0 ]]; then
                 #log "Notification received from whitelisted app - staying awake"
                 handle_notification_actions
+                log "===== wakeup-check.sh finished (mode: $MODE) ====="
+                sleep 2
             elif [[ $result -eq 124 ]]; then
                 log "Notification timeout reached - suspending again."
                 suspend_and_exit
@@ -493,6 +495,7 @@ if [[ "$MODE" == "post" ]]; then
     else
         log "Not an RTC wake."
         turn_on_display
+        log "===== wakeup-check.sh finished (mode: $MODE) ====="
     fi
 fi
 
