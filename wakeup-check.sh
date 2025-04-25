@@ -194,24 +194,26 @@ is_quiet_hours() {
     local start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
     local end_ts
 
-    # Wenn QUIET_HOURS_END nach Mitternacht geht
-    if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
-        # Ruhezeit geht am selben Tag zu Ende
+    # numerischer Vergleich zur Erkennung "über Mitternacht"
+    local start_hms=$(date -d "$QUIET_HOURS_START" +%s)
+    local end_hms=$(date -d "$QUIET_HOURS_END" +%s)
+
+    if (( end_hms > start_hms )); then
         end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
     else
-        # Ruhezeit geht über Mitternacht hinaus
         end_ts=$(date -d "tomorrow $QUIET_HOURS_END" +%s)
     fi
 
-    echo "Current time: $(date -d @$now)"
-    echo "Start time: $(date -d @$start_ts)"
-    echo "End time: $(date -d @$end_ts)"
+    log "Current time: $(date -d @$now)"
+    log "Quiet hours start: $(date -d @$start_ts)"
+    log "Quiet hours end: $(date -d @$end_ts)"
 
-    # Überprüfen, ob wir uns in den ruhigen Stunden befinden
     if (( now >= start_ts && now < end_ts )); then
-        return 0  # In den ruhigen Stunden
+        log "Currently in quiet hours."
+        return 0
     else
-        return 1  # Nicht in den ruhigen Stunden
+        log "Not in quiet hours."
+        return 1
     fi
 }
 
