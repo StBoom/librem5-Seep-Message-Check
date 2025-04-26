@@ -95,7 +95,7 @@ fi
 echo "Installiere systemd Sleep Hook..."
 
 if [ ! -f "$SLEEP_HOOK_PATH" ]; then
-    cp wakeup-check.sh "$SLEEP_HOOK_PATH"
+    cp wakeup-check "$SLEEP_HOOK_PATH"
     chmod +x "$SLEEP_HOOK_PATH"
     echo "Sleep Hook-Skript wurde unter $SLEEP_HOOK_PATH installiert."
 else
