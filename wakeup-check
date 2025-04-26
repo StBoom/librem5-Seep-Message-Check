@@ -3,12 +3,12 @@
 case "$1" in
   pre)
     echo "[wakeup-check] Pre-Suspend Start" >> /var/log/wakeup-check.log
-    /usr/local/bin/wakeup-check.sh pre >> /var/log/wakeup-check.log 2>&1
+    /usr/local/bin/wakeup-check.sh pre
     echo "[wakeup-check] Pre-Suspend End" >> /var/log/wakeup-check.log
     ;;
   post)
     echo "[wakeup-check] Post-Resume Start" >> /var/log/wakeup-check.log
-    /usr/local/bin/wakeup-check.sh post >> /var/log/wakeup-check.log 2>&1
+    /usr/local/bin/wakeup-check.sh post
     echo "[wakeup-check] Post-Resume End" >> /var/log/wakeup-check.log
     ;;
 esac
