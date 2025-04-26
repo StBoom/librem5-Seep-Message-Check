@@ -1,7 +1,8 @@
 [Unit]
 Description=Wakeup Check Post Resume
 After=suspend.target
-Conflicts=wakeup-check-pre.service
+After=hibernate.target
+After=hybrid-sleep.target
 
 [Service]
 Type=oneshot
@@ -9,4 +10,4 @@ ExecStart=/usr/local/bin/wakeup-check.sh post
 TimeoutStartSec=300
 
 [Install]
-WantedBy=suspend.target
+WantedBy=sleep.target
