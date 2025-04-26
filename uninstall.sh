@@ -5,9 +5,12 @@ SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
-SLEEP_HOOK_PATH="/lib/systemd/system-sleep/wakeup-check"
 CONFIG_PATH="/etc/wakeup-check.conf"
 WAKEUP_DIR="/var/lib/wakeup-check"
+
+# Service paths
+PRE_SERVICE_PATH="/etc/systemd/system/wakeup-check-pre.service"
+POST_SERVICE_PATH="/etc/systemd/system/wakeup-check-post.service"
 
 # Entfernen des Skripts
 if [ -f "$SCRIPT_PATH" ]; then
@@ -49,12 +52,24 @@ else
     echo "Konfigurationsdatei wurde nicht unter $CONFIG_PATH gefunden."
 fi
 
-# Entfernen des systemd sleep hook-Skripts
-if [ -f "$SLEEP_HOOK_PATH" ]; then
-    echo "Entferne Sleep Hook-Skript unter $SLEEP_HOOK_PATH..."
-    rm "$SLEEP_HOOK_PATH"
+# Entfernen des systemd Pre-Suspend Service
+if [ -f "$PRE_SERVICE_PATH" ]; then
+    echo "Entferne Pre-Suspend Service unter $PRE_SERVICE_PATH..."
+    rm "$PRE_SERVICE_PATH"
+    systemctl daemon-reload
+    systemctl disable wakeup-check-pre.service
 else
-    echo "Sleep Hook-Skript wurde nicht unter $SLEEP_HOOK_PATH gefunden."
+    echo "Pre-Suspend Service wurde nicht unter $PRE_SERVICE_PATH gefunden."
+fi
+
+# Entfernen des systemd Post-Resume Service
+if [ -f "$POST_SERVICE_PATH" ]; then
+    echo "Entferne Post-Resume Service unter $POST_SERVICE_PATH..."
+    rm "$POST_SERVICE_PATH"
+    systemctl daemon-reload
+    systemctl disable wakeup-check-post.service
+else
+    echo "Post-Resume Service wurde nicht unter $POST_SERVICE_PATH gefunden."
 fi
 
 # Überprüfen und Entfernen des wakeup-check Verzeichnisses, wenn es leer ist
