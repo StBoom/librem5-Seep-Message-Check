@@ -184,7 +184,7 @@ handle_notification_actions() {
 }
 
 is_quiet_hours() {
-    #local test_time="$1"
+    local test_time="$1"
     local now
 
     if [[ -n "$test_time" ]]; then
