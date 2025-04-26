@@ -232,7 +232,7 @@ is_rtc_wakeup() {
         log "RTC wake confirmed now: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
         return 0
     else
-        log "Not an RTC wake: $(date -d $rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
+        log "Not an RTC wake: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
         return 1
     fi
 }
