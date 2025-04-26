@@ -1,87 +1,68 @@
 #!/bin/bash
 
-# Uninstaller for Wakeup Check Service
-
 # Define paths
 SCRIPT_PATH="/usr/local/bin/wakeup-check.sh"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
-SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
-SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
+SLEEP_HOOK_PATH="/lib/systemd/system-sleep/wakeup-check"
 CONFIG_PATH="/etc/wakeup-check.conf"
 WAKEUP_DIR="/var/lib/wakeup-check"
 
-# Remove the script
+# Entfernen des Skripts
 if [ -f "$SCRIPT_PATH" ]; then
-    echo "Removing $SCRIPT_PATH..."
+    echo "Entferne $SCRIPT_PATH..."
     rm "$SCRIPT_PATH"
 else
-    echo "Script not found at $SCRIPT_PATH."
+    echo "Skript wurde nicht unter $SCRIPT_PATH gefunden."
 fi
 
-# Remove log file
+# Entfernen der Log-Datei
 if [ -f "$LOG_FILE" ]; then
-    echo "Removing $LOG_FILE..."
+    echo "Entferne $LOG_FILE..."
     rm "$LOG_FILE"
 else
-    echo "Log file not found at $LOG_FILE."
+    echo "Log-Datei wurde nicht unter $LOG_FILE gefunden."
 fi
 
-# Remove timestamp file
+# Entfernen der Timestamp-Datei
 if [ -f "$WAKE_TIMESTAMP_FILE" ]; then
-    echo "Removing $WAKE_TIMESTAMP_FILE..."
+    echo "Entferne $WAKE_TIMESTAMP_FILE..."
     rm "$WAKE_TIMESTAMP_FILE"
 else
-    echo "Timestamp file not found at $WAKE_TIMESTAMP_FILE."
+    echo "Timestamp-Datei wurde nicht unter $WAKE_TIMESTAMP_FILE gefunden."
 fi
 
-# Remove brightness file
+# Entfernen der Helligkeits-Datei
 if [ -f "$BRIGHTNESS_STORE_FILE" ]; then
-    rm -f $BRIGHTNESS_STORE_FILE
-    echo "Removed $BRIGHTNESS_STORE_FILE"
+    echo "Entferne $BRIGHTNESS_STORE_FILE..."
+    rm -f "$BRIGHTNESS_STORE_FILE"
 else
-    echo "$BRIGHTNESS_STORE_FILE not found. Nothing to remove."
+    echo "$BRIGHTNESS_STORE_FILE wurde nicht gefunden. Nichts zu entfernen."
 fi
 
-# Remove config file
+# Entfernen der Konfigurationsdatei
 if [ -f "$CONFIG_PATH" ]; then
-    echo "Removing $CONFIG_PATH..."
+    echo "Entferne $CONFIG_PATH..."
     rm "$CONFIG_PATH"
 else
-    echo "Config file not found at $CONFIG_PATH."
+    echo "Konfigurationsdatei wurde nicht unter $CONFIG_PATH gefunden."
 fi
 
-# Remove systemd service files
-if [ -f "$SERVICE_PRE_PATH" ]; then
-    echo "Removing $SERVICE_PRE_PATH..."
-    rm "$SERVICE_PRE_PATH"
+# Entfernen des systemd sleep hook-Skripts
+if [ -f "$SLEEP_HOOK_PATH" ]; then
+    echo "Entferne Sleep Hook-Skript unter $SLEEP_HOOK_PATH..."
+    rm "$SLEEP_HOOK_PATH"
 else
-    echo "Pre-suspend service file not found."
+    echo "Sleep Hook-Skript wurde nicht unter $SLEEP_HOOK_PATH gefunden."
 fi
 
-if [ -f "$SERVICE_POST_PATH" ]; then
-    echo "Removing $SERVICE_POST_PATH..."
-    rm "$SERVICE_POST_PATH"
-else
-    echo "Post-suspend service file not found."
-fi
-
-# Disable and stop systemd services if they exist
-echo "Disabling systemd services..."
-systemctl is-enabled --quiet wakeup-check-pre.service && systemctl disable wakeup-check-pre.service
-systemctl is-enabled --quiet wakeup-check-post.service && systemctl disable wakeup-check-post.service
-
-# Reload systemd to clear out the services
-echo "Reloading systemd..."
-systemctl daemon-reload
-
-# Check if the wakeup-check directory is empty and remove it
+# Überprüfen und Entfernen des wakeup-check Verzeichnisses, wenn es leer ist
 if [ -d "$WAKEUP_DIR" ] && [ -z "$(ls -A $WAKEUP_DIR)" ]; then
-    echo "Removing empty directory $WAKEUP_DIR..."
+    echo "Entferne leeres Verzeichnis $WAKEUP_DIR..."
     rmdir "$WAKEUP_DIR"
 else
-    echo "Directory $WAKEUP_DIR is not empty or does not exist."
+    echo "Verzeichnis $WAKEUP_DIR ist nicht leer oder existiert nicht."
 fi
 
-echo "Uninstallation complete."
+echo "Deinstallation abgeschlossen."
