@@ -260,7 +260,7 @@ set_rtc_wakeup() {
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
         log "Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
     else
-        log "No valid alarm found - skipping alarm adjustment"
+        #log "No valid alarm found - skipping alarm adjustment"
         next_alarm_ts=""
     fi
 
@@ -270,7 +270,7 @@ set_rtc_wakeup() {
         log "In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
+        #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
@@ -295,12 +295,12 @@ set_rtc_wakeup() {
         exit 1
     fi
 
-    log "RTC wakealarm set to: $(date -d @$wake_ts)"
+    #log "RTC wakealarm set to: $(date -d @$wake_ts)"
     local tsf_actual=$(cat "$WAKE_TIMESTAMP_FILE")
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     
     if [[ "$rtc_actual" == "$tsf_actual" ]]; then
-        log "RTC wakealarm and saved timestamp match"
+        #log "RTC wakealarm and saved timestamp match"
         log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[ERROR] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
