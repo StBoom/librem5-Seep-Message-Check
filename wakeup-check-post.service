@@ -2,7 +2,6 @@
 Description=Wakeup Check Post Resume
 After=suspend.target
 Conflicts=wakeup-check-pre.service
-After=wakeup-check-pre.service
 
 [Service]
 Type=oneshot
@@ -11,4 +10,3 @@ TimeoutStartSec=300
 
 [Install]
 WantedBy=suspend.target
-WantedBy=post-suspend.target
