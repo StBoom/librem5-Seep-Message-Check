@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Installer für Wakeup Check Service (angepasst für systemd sleep hooks)
-
 # Define paths
 SCRIPT_NAME="wakeup-check.sh"
 SCRIPT_SOURCE="./$SCRIPT_NAME"
