@@ -484,7 +484,6 @@ fi
 
 log "===== wakeup-check.sh started (mode: $MODE) ====="
 turn_off_display
-log "===== wakeup-check.sh started (mode: $MODE) ====="
 
 if [[ "$MODE" == "pre" ]]; then
     log "ich wurde gestartet"
