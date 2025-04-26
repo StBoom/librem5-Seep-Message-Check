@@ -1,11 +1,14 @@
-# /etc/systemd/system/wakeup-check-pre.service
 [Unit]
 Description=Wakeup Check Pre Suspend
-Before=sleep.target
+Before=suspend.target
+Conflicts=wakeup-check-post.service
+After=wakeup-check-post.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/wakeup-check.sh pre
+ExecStartPost=/bin/systemctl start wakeup-check-lock.service
+TimeoutStartSec=300
 
 [Install]
-WantedBy=sleep.target
+WantedBy=suspend.target
