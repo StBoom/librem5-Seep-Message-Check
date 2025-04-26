@@ -1,3 +1,5 @@
+
+
 #!/bin/bash
 
 # Define paths
@@ -7,7 +9,12 @@ SCRIPT_PATH="/usr/local/bin/$SCRIPT_NAME"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
-SLEEP_HOOK_PATH="/lib/systemd/system-sleep/wakeup-check"
+PRE_SERVICE_NAME="wakeup-check-pre.service"
+POST_SERVICE_NAME="wakeup-check-post.service"
+PRE_SERVICE_SOURCE="./$PRE_SERVICE_NAME"
+POST_SERVICE_SOURCE="./$POST_SERVICE_NAME"
+PRE_SERVICE_PATH="/etc/systemd/system/$PRE_SERVICE_NAME"
+POST_SERVICE_PATH="/etc/systemd/system/$POST_SERVICE_NAME"
 CONFIG_SOURCE="./wakeup-check.conf"
 CONFIG_PATH="/etc/wakeup-check.conf"
 
@@ -64,10 +71,10 @@ else
     echo "Timestamp-Datei existiert bereits."
 fi
 
-# Helligkeits-Datei (zum Speichern der Helligkeit vor dem Display-Ausschalten)
+# Helligkeits-Datei
 if [ ! -f "$BRIGHTNESS_STORE_FILE" ]; then
-    touch $BRIGHTNESS_STORE_FILE
-    chmod 644 $BRIGHTNESS_STORE_FILE
+    touch "$BRIGHTNESS_STORE_FILE"
+    chmod 644 "$BRIGHTNESS_STORE_FILE"
     echo "Helligkeitsdatei wurde unter $BRIGHTNESS_STORE_FILE erstellt."
 else
     echo "Helligkeitsdatei existiert bereits."
@@ -91,13 +98,43 @@ else
     echo "Konfigurationsdatei wurde installiert."
 fi
 
-# Installiere systemd sleep hook (anstelle der systemd Services)
-echo "Installiere systemd Sleep Hook..."
+# Installiere systemd Services
+echo "Installiere systemd Services für Wakeup-Check..."
 
-if [ ! -f "$SLEEP_HOOK_PATH" ]; then
-    cp wakeup-check "$SLEEP_HOOK_PATH"
-    chmod +x "$SLEEP_HOOK_PATH"
-    echo "Sleep Hook-Skript wurde unter $SLEEP_HOOK_PATH installiert."
+# Pre-Suspend Service
+if [ ! -f "$PRE_SERVICE_PATH" ]; then
+    cp "$PRE_SERVICE_SOURCE" "$PRE_SERVICE_PATH"
+    echo "Pre-Suspend Service installiert unter $PRE_SERVICE_PATH."
 else
-    echo "$SLEEP_HOOK_PATH existiert bereits. Überspringe Kopieren."
+    echo "$PRE_SERVICE_PATH existiert bereits."
+    read -p "Möchten Sie den Pre-Suspend Service überschreiben? (y/N): " overwrite_pre
+    if [[ "$overwrite_pre" =~ ^[Yy]$ ]]; then
+        cp "$PRE_SERVICE_SOURCE" "$PRE_SERVICE_PATH"
+        echo "Pre-Suspend Service wurde überschrieben."
+    else
+        echo "Behalte bestehenden Pre-Suspend Service."
+    fi
 fi
+
+# Post-Resume Service
+if [ ! -f "$POST_SERVICE_PATH" ]; then
+    cp "$POST_SERVICE_SOURCE" "$POST_SERVICE_PATH"
+    echo "Post-Resume Service installiert unter $POST_SERVICE_PATH."
+else
+    echo "$POST_SERVICE_PATH existiert bereits."
+    read -p "Möchten Sie den Post-Resume Service überschreiben? (y/N): " overwrite_post
+    if [[ "$overwrite_post" =~ ^[Yy]$ ]]; then
+        cp "$POST_SERVICE_SOURCE" "$POST_SERVICE_PATH"
+        echo "Post-Resume Service wurde überschrieben."
+    else
+        echo "Behalte bestehenden Post-Resume Service."
+    fi
+fi
+
+# systemd neuladen und Dienste aktivieren
+echo "Aktualisiere systemd und aktiviere Dienste..."
+systemctl daemon-reload
+systemctl enable wakeup-check-pre.service
+systemctl enable wakeup-check-post.service
+
+echo "Installation abgeschlossen."
