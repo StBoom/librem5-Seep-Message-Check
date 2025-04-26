@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installer for Wakeup Check Service
+# Installer für Wakeup Check Service (angepasst für systemd sleep hooks)
 
 # Define paths
 SCRIPT_NAME="wakeup-check.sh"
@@ -9,117 +9,97 @@ SCRIPT_PATH="/usr/local/bin/$SCRIPT_NAME"
 LOG_FILE="/var/log/wakeup-check.log"
 WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
-SERVICE_PRE_PATH="/etc/systemd/system/wakeup-check-pre.service"
-SERVICE_POST_PATH="/etc/systemd/system/wakeup-check-post.service"
+SLEEP_HOOK_PATH="/lib/systemd/system-sleep/wakeup-check"
 CONFIG_SOURCE="./wakeup-check.conf"
 CONFIG_PATH="/etc/wakeup-check.conf"
 
-# Copy the wakeup-check.sh script to /usr/local/bin, only if it doesn't exist
+# Kopieren des Skripts nach /usr/local/bin, nur wenn es nicht existiert
 if [ ! -f "$SCRIPT_PATH" ]; then
-    echo "Copying $SCRIPT_NAME to $SCRIPT_PATH..."
+    echo "Kopiere $SCRIPT_NAME nach $SCRIPT_PATH..."
     cp "$SCRIPT_SOURCE" "$SCRIPT_PATH"
 else
-    echo "$SCRIPT_PATH already exists."
-    read -p "Do you want to overwrite the script? (y/N): " overwrite_script
+    echo "$SCRIPT_PATH existiert bereits."
+    read -p "Möchten Sie das Skript überschreiben? (y/N): " overwrite_script
     if [[ "$overwrite_script" =~ ^[Yy]$ ]]; then
         cp "$SCRIPT_SOURCE" "$SCRIPT_PATH"
-        echo "Script overwritten at $SCRIPT_PATH."
+        echo "Skript wurde unter $SCRIPT_PATH überschrieben."
     else
-        echo "Keeping existing script."
+        echo "Behalte das bestehende Skript."
     fi
 fi
 
-# Set the correct permissions for the script
+# Setzen der richtigen Berechtigungen für das Skript
 if [ -f "$SCRIPT_PATH" ]; then
     chmod +x "$SCRIPT_PATH"
 else
-    echo "Error: Script not found at $SCRIPT_PATH. Aborting."
+    echo "Fehler: Skript nicht gefunden unter $SCRIPT_PATH. Abbruch."
     exit 1
 fi
 
-# Create necessary directories and files if they do not exist
-echo "Creating necessary directories and files..."
+# Erstellen notwendiger Verzeichnisse und Dateien, falls sie nicht existieren
+echo "Erstelle notwendige Verzeichnisse und Dateien..."
 
-# Directory for timestamp
+# Verzeichnis für Timestamps
 if [ ! -d "/var/lib/wakeup-check" ]; then
-    echo "Creating /var/lib/wakeup-check..."
+    echo "Erstelle /var/lib/wakeup-check..."
     mkdir -p /var/lib/wakeup-check
     chmod 755 /var/lib/wakeup-check
 else
-    echo "Directory /var/lib/wakeup-check already exists."
+    echo "Verzeichnis /var/lib/wakeup-check existiert bereits."
 fi
 
-# Log file
+# Log-Datei
 if [ ! -f "$LOG_FILE" ]; then
     touch "$LOG_FILE"
     chmod 644 "$LOG_FILE"
-    echo "Log file created at $LOG_FILE."
+    echo "Log-Datei wurde unter $LOG_FILE erstellt."
 else
-    echo "Log file already exists."
+    echo "Log-Datei existiert bereits."
 fi
 
-# Timestamp file
+# Timestamp-Datei
 if [ ! -f "$WAKE_TIMESTAMP_FILE" ]; then
     touch "$WAKE_TIMESTAMP_FILE"
     chmod 644 "$WAKE_TIMESTAMP_FILE"
-    echo "Timestamp file created at $WAKE_TIMESTAMP_FILE."
+    echo "Timestamp-Datei wurde unter $WAKE_TIMESTAMP_FILE erstellt."
 else
-    echo "Timestamp file already exists."
+    echo "Timestamp-Datei existiert bereits."
 fi
 
-# Brightness file (to store previous brightness before display off)
+# Helligkeits-Datei (zum Speichern der Helligkeit vor dem Display-Ausschalten)
 if [ ! -f "$BRIGHTNESS_STORE_FILE" ]; then
     touch $BRIGHTNESS_STORE_FILE
     chmod 644 $BRIGHTNESS_STORE_FILE
-    echo "Brightness store file created at $BRIGHTNESS_STORE_FILE with 644 permissions."
+    echo "Helligkeitsdatei wurde unter $BRIGHTNESS_STORE_FILE erstellt."
 else
-    echo "Brightness store file already exists."
+    echo "Helligkeitsdatei existiert bereits."
 fi
 
-# Install config file
+# Konfigurationsdatei installieren
 if [ -f "$CONFIG_PATH" ]; then
-    echo "$CONFIG_PATH already exists."
-    read -p "Do you want to overwrite the config file? (y/N): " overwrite_conf
+    echo "$CONFIG_PATH existiert bereits."
+    read -p "Möchten Sie die Konfigurationsdatei überschreiben? (y/N): " overwrite_conf
     if [[ "$overwrite_conf" =~ ^[Yy]$ ]]; then
         cp "$CONFIG_SOURCE" "$CONFIG_PATH"
         chmod 644 "$CONFIG_PATH"
-        echo "Config file overwritten at $CONFIG_PATH."
+        echo "Konfigurationsdatei wurde unter $CONFIG_PATH überschrieben."
     else
-        echo "Keeping existing config file."
+        echo "Behalte die bestehende Konfigurationsdatei."
     fi
 else
-    echo "Installing config file to $CONFIG_PATH..."
+    echo "Installiere Konfigurationsdatei nach $CONFIG_PATH..."
     cp "$CONFIG_SOURCE" "$CONFIG_PATH"
     chmod 644 "$CONFIG_PATH"
-    echo "Config file installed."
+    echo "Konfigurationsdatei wurde installiert."
 fi
 
-# Install systemd service files
-echo "Installing systemd service files..."
+# Installiere systemd sleep hook (anstelle der systemd Services)
+echo "Installiere systemd Sleep Hook..."
 
-if [ ! -f "$SERVICE_PRE_PATH" ]; then
-    cp wakeup-check-pre.service "$SERVICE_PRE_PATH"
-    chmod 644 "$SERVICE_PRE_PATH"
-    echo "Pre-suspend service file installed."
+if [ ! -f "$SLEEP_HOOK_PATH" ]; then
+    cp wakeup-check.sh "$SLEEP_HOOK_PATH"
+    chmod +x "$SLEEP_HOOK_PATH"
+    echo "Sleep Hook-Skript wurde unter $SLEEP_HOOK_PATH installiert."
 else
-    echo "$SERVICE_PRE_PATH already exists. Skipping copy."
+    echo "$SLEEP_HOOK_PATH existiert bereits. Überspringe Kopieren."
 fi
-
-if [ ! -f "$SERVICE_POST_PATH" ]; then
-    cp wakeup-check-post.service "$SERVICE_POST_PATH"
-    chmod 644 "$SERVICE_POST_PATH"
-    echo "Post-suspend service file installed."
-else
-    echo "$SERVICE_POST_PATH already exists. Skipping copy."
-fi
-
-# Reload systemd
-echo "Reloading systemd daemon..."
-systemctl daemon-reload
-
-# Enable services
-echo "Enabling services..."
-systemctl enable wakeup-check-pre.service
-systemctl enable wakeup-check-post.service
-
-echo "Installation complete."
