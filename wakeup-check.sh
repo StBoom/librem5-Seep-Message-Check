@@ -47,6 +47,23 @@ fi
 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
+cleanup() {
+    log "[INFO] Cleaning up before exit."
+    # Hier könntest du noch Aufräumarbeiten machen, z.B. temporäre Dateien löschen etc.
+}
+
+on_interrupt() {
+    log "[ERROR] Script interrupted (SIGINT or SIGTERM)."
+    cleanup
+    exit 6
+}
+
+on_exit() {
+    # Wird immer beim Beenden aufgerufen, egal ob Fehler oder Erfolg
+    log "[INFO] Script exiting."
+    cleanup
+}
+
 turn_off_display() {
     log "turn_off_display($DISPLAY_CONTROL_METHOD)"
     case "$DISPLAY_CONTROL_METHOD" in
@@ -258,7 +275,7 @@ set_rtc_wakeup() {
     if is_quiet_hours; then
         #log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "In cuiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
+        log "In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
         #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
@@ -299,7 +316,7 @@ set_rtc_wakeup() {
 }
 
 get_next_alarm_time() {
-    alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    local alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
         --dest org.gnome.clocks \
         --object-path /org/gnome/clocks/AlarmModel \
@@ -344,8 +361,7 @@ wait_for_internet() {
             return 1
         fi
 
-        status=$(nmcli networking connectivity || true)
-        if [[ "$status" == "full" ]]; then
+        if status=$(nmcli networking connectivity 2>/dev/null) && [[ "$status" == "full" ]]; then
             log "Internet connection is available (nmcli)"
             return 0
         fi
@@ -448,20 +464,24 @@ monitor_notifications() {
     fi
 }
 
+# ===== TRAPS =====
+trap on_interrupt INT TERM
+trap on_exit EXIT
+
 # ---------- MAIN ----------
 MODE="$1"
-log "===== wakeup-check.sh started (mode: $MODE) ====="
+
 if [[ -z "$MODE" ]]; then
     log "[ERROR] No mode specified (expected 'pre' or 'post')"
     exit 1
 fi
-
 if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
     log "[ERROR] Invalid mode: $MODE (expected 'pre' or 'post')"
     exit 1
 fi
+
+log "===== wakeup-check.sh started (mode: $MODE) ====="
 turn_off_display
-sleep 2
 
 if [[ "$MODE" == "post" ]]; then
     if is_rtc_wakeup; then
@@ -499,13 +519,11 @@ if [[ "$MODE" == "post" ]]; then
         log "Not an RTC wake."
         turn_on_display
     fi
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
-    sync
-    exit 0
+
 elif [[ "$MODE" == "pre" ]]; then
     set_rtc_wakeup
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
-    sync
-    sleep 2
-    exit 0
 fi
+
+sync
+log "===== wakeup-check.sh finished (mode: $MODE) ====="
+exit 0
