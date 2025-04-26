@@ -91,7 +91,6 @@ turn_off_display() {
             else
                 log "[ERROR] Brightness path $BRIGHTNESS_PATH not found."
             fi
-            log "ende brightness"
             ;;
         screensaver)
             #log "Turning off display via GNOME ScreenSaver D-Bus..."
@@ -108,7 +107,6 @@ turn_off_display() {
         *)
             log "[ERROR] Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
-    log "ende funktion"
     esac
 }
 
