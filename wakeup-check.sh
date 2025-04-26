@@ -184,15 +184,6 @@ handle_notification_actions() {
 }
 
 is_quiet_hours() {
-    local test_time="$1"
-    local now
-
-    if [[ -n "$test_time" ]]; then
-        now=$(date -d "$test_time" +%s)
-    else
-        now=$(date +%s)
-    fi
-
     local today=$(date +%Y-%m-%d)
     local start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
     local end_ts
