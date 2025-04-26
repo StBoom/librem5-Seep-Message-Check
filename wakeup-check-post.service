@@ -10,4 +10,4 @@ ExecStart=/usr/local/bin/wakeup-check.sh post
 TimeoutStartSec=300
 
 [Install]
-WantedBy=sleep.target
+WantedBy=suspend.target
