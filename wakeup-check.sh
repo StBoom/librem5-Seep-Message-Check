@@ -481,7 +481,8 @@ if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
 fi
 
 log "===== wakeup-check.sh started (mode: $MODE) ====="
-turn_off_display || { log "[ERROR] Fehler bei turn_off_display"; exit 1; }
+turn_off_display
+log "===== wakeup-check.sh started (mode: $MODE) ====="
 
 if [[ "$MODE" == "post" ]]; then
     if is_rtc_wakeup; then
@@ -519,8 +520,9 @@ if [[ "$MODE" == "post" ]]; then
         log "Not an RTC wake."
         turn_on_display
     fi
+fi
 
-elif [[ "$MODE" == "pre" ]]; then
+if [[ "$MODE" == "pre" ]]; then
     log "ich wurde gestartet"
     set_rtc_wakeup
 fi
