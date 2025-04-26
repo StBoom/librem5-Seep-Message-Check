@@ -251,7 +251,7 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    #log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+    log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
@@ -262,7 +262,7 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    #log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
@@ -273,12 +273,12 @@ set_rtc_wakeup() {
     fi
 
     if is_quiet_hours; then
-        #log "Currently in quiet hours"
+        log "Currently in quiet hours"
         wake_ts=$quiet_end_ts
         log "In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
+        log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
@@ -303,7 +303,7 @@ set_rtc_wakeup() {
         exit 1
     fi
 
-    #log "RTC wakealarm set to: $(date -d @$wake_ts)"
+    log "RTC wakealarm set to: $(date -d @$wake_ts)"
     local tsf_actual=$(cat "$WAKE_TIMESTAMP_FILE")
     local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
     
@@ -521,6 +521,7 @@ if [[ "$MODE" == "post" ]]; then
     fi
 
 elif [[ "$MODE" == "pre" ]]; then
+    log "ich wurde gestartet"
     set_rtc_wakeup
 fi
 
