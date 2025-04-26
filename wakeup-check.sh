@@ -438,14 +438,17 @@ if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
     exit 1
 fi
 
-log "===== wakeup-check.sh started (mode: $MODE) ====="
-turn_off_display
+
 
 if [[ "$MODE" == "pre" ]]; then
+    log "===== wakeup-check.sh started (mode: $MODE) ====="
+    turn_off_display
     set_rtc_wakeup
 fi
 
 if [[ "$MODE" == "post" ]]; then
+    log "===== wakeup-check.sh started (mode: $MODE) ====="
+    turn_off_display
     if is_rtc_wakeup; then
         log "RTC wake detected."
 
@@ -485,4 +488,5 @@ fi
 
 sync
 log "===== wakeup-check.sh finished (mode: $MODE) ====="
+sleep 2
 exit 0
