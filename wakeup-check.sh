@@ -251,7 +251,7 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+    #log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
 
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
@@ -262,7 +262,7 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    #log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
@@ -316,7 +316,7 @@ set_rtc_wakeup() {
 }
 
 get_next_alarm_time() {
-    local alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
         --dest org.gnome.clocks \
         --object-path /org/gnome/clocks/AlarmModel \
@@ -484,7 +484,6 @@ log "===== wakeup-check.sh started (mode: $MODE) ====="
 turn_off_display
 
 if [[ "$MODE" == "pre" ]]; then
-    log "ich wurde gestartet"
     set_rtc_wakeup
 fi
 
