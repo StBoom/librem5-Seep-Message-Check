@@ -333,20 +333,30 @@ check_alarm_within_minutes() {
 
 wait_for_internet() {
     log "Waiting up to $MAX_WAIT seconds for internet..."
-    for ((i=0; i<MAX_WAIT; i++)); do
-        status=$(nmcli networking connectivity)
+    local start_time=$(date +%s)
+
+    while true; do
+        local now=$(date +%s)
+        local elapsed=$((now - start_time))
+
+        if (( elapsed >= MAX_WAIT )); then
+            log "[WARNING] Internet wait timeout after $MAX_WAIT seconds"
+            return 1
+        fi
+
+        status=$(nmcli networking connectivity || true)
         if [[ "$status" == "full" ]]; then
-            #log "Internet connection is available"
+            log "Internet connection is available (nmcli)"
             return 0
         fi
-    done
 
-    if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null; then
-        #log "Ping successful - internet likely available"
-        return 0
-    fi
-    #log "[WARNING] No internet connection detected"
-    return 1
+        if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null 2>&1; then
+            log "Internet connection is available (ping to $PING_HOST)"
+            return 0
+        fi
+
+        sleep 2
+    done
 }
 
 is_whitelisted() {
@@ -441,6 +451,15 @@ monitor_notifications() {
 # ---------- MAIN ----------
 MODE="$1"
 log "===== wakeup-check.sh started (mode: $MODE) ====="
+if [[ -z "$MODE" ]]; then
+    log "[ERROR] No mode specified (expected 'pre' or 'post')"
+    exit 1
+fi
+
+if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
+    log "[ERROR] Invalid mode: $MODE (expected 'pre' or 'post')"
+    exit 1
+fi
 turn_off_display
 sleep 2
 
@@ -489,7 +508,4 @@ elif [[ "$MODE" == "pre" ]]; then
     sync
     sleep 2
     exit 0
-else
-    log "[ERROR] Unknown mode: $MODE"
-    exit 1
 fi
