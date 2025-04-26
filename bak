@@ -31,3 +31,18 @@ monitor_notifications_alt() {
     #log "Notification monitor timed out without match."
     return 124
 }
+
+[Unit]
+Description=Wakeup Check Post Resume
+After=suspend.target
+After=hibernate.target
+After=hybrid-sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wakeup-check.sh post
+TimeoutStartSec=300
+
+[Install]
+WantedBy=sleep.target
+
