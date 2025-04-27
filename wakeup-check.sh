@@ -4,12 +4,10 @@ set -euo pipefail
 # ====== Lockfile Management ======
 LOCKFILE="/var/lock/wakeup-check.lock"
 
-# Try to acquire the lock
+# Try to acquire the lock (wait if another instance is running)
 exec 200>"$LOCKFILE"
-if ! flock -n 200; then
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Another instance is already running. Exiting." >> "/var/log/wakeup-check-error.log"
-    exit 1
-fi
+flock 200 || { echo "[$(date +'%Y-%m-%d %H:%M:%S')] Another instance is already running. Waiting..."; exit 1; }
+
 
 log() {
     local msg="$1"
