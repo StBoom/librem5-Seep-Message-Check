@@ -2,8 +2,8 @@
 Description=Wakeup Check (Pre)
 Before=sleep.target
 Requires=sleep.target
-After=wakeup-check-post.service
-Conflicts=wakeup-check-post.service
+#After=wakeup-check-post.service
+#Conflicts=wakeup-check-post.service
 
 [Service]
 Type=oneshot
