@@ -1,8 +1,8 @@
 [Unit]
 Description=Wakeup Check (Post)
 After=suspend.target
-After=wakeup-check-pre.service
-Conflicts=wakeup-check-pre.service
+#After=wakeup-check-pre.service
+#Conflicts=wakeup-check-pre.service
 
 [Service]
 Type=oneshot
