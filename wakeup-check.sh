@@ -380,8 +380,7 @@ wait_for_internet() {
             log "Internet connection is available (ping to $PING_HOST)"
             return 0
         fi
-
-        sleep 2
+        sleep 1 # pause till next check
     done
 }
 
