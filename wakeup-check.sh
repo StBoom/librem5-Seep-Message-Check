@@ -433,11 +433,13 @@ monitor_notifications() {
     )
 
     if [ "$found_notification" -eq 1 ]; then
+        log "[INFO] Notification came"
         return 0  # Notifications came, and none were blocked.
     else
         log "[INFO] Timeout reached without receiving notifications."
         return 124  # No notifications within the timeout period.
     fi
+    log "[INFO] Ende"
 }
 
 # ===== TRAPS =====
