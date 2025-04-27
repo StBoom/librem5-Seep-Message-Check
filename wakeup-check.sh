@@ -404,12 +404,11 @@ monitor_notifications() {
     local timeout_duration=${NOTIFICATION_TIMEOUT:-60}
     log "Monitoring notifications for $timeout_duration seconds..."
 
-    local found_notification=0
-
+    timeout "$timeout_duration" \
+        sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null | \
     while IFS= read -r line; do
         if echo "$line" | grep -q '"member":"Notify"'; then
-            found_notification=1
-
             app_name=$(echo "$line" | jq -r '.payload.data[0]' 2>/dev/null)
             desktop_entry=$(echo "$line" | jq -r '.payload.data[6]["desktop-entry"].data // empty' 2>/dev/null)
 
@@ -421,22 +420,18 @@ monitor_notifications() {
 
             if is_whitelisted "$check_entry"; then
                 log "Allowed notification from: $check_entry"
-                return 0
+                handle_notification_actions
+                log "===== wakeup-check.sh (mode: $MODE) finished ====="
+                sync
+                sleep 2
+                kill "$$"
             else
                 log "Disallowed notification from: $check_entry"
             fi
         fi
-    done < <(
-        timeout "$timeout_duration" \
-            sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-            busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null
-    )
-
-    if [ "$found_notification" -eq 1 ]; then
-        return 1  # Notifications kamen, aber keine erlaubte
-    else
-        return 124  # Keine Notification kam
-    fi
+    done
+    #log "Notification monitor timed out without match."
+    return 124
 }
 
 # ===== TRAPS =====
