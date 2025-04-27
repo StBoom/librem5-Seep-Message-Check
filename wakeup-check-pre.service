@@ -7,7 +7,7 @@ Requires=sleep.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/wakeup-check.sh pre
+ExecStart=bash /usr/local/bin/wakeup-check.sh pre
 RemainAfterExit=no
 
 [Install]
