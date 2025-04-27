@@ -1,11 +1,11 @@
 [Unit]
-Description=Wakeup Check Pre Suspend
-Before=suspend.target
+Description=Wakeup Check (Pre)
+After=wakeup-check-post.service
+Conflicts=wakeup-check-post.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/wakeup-check.sh pre
-TimeoutStartSec=60  # mindestens etwas größer als sleep-Dauer!
+ExecStart=/usr/bin/systemd-inhibit --what=sleep --who="wakeup-check.sh pre" --why="Running Pre-Suspend Tasks" /usr/local/bin
 
 [Install]
-WantedBy=suspend.target
+WantedBy=multi-user.target
