@@ -68,14 +68,14 @@ cleanup() {
 
 on_interrupt() {
     log "[ERROR] Script interrupted (SIGINT or SIGTERM)."
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    log "[INFO] ===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
     exit 6
 }
 
 on_exit() {
     # Is always called when exiting, regardless of whether error or success
-    log "===== wakeup-check.sh finished (mode: $MODE) ====="
+    log "[INFO] ===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
 }
 
@@ -89,17 +89,17 @@ turn_off_display() {
                 # Only save the brightness value if it's not zero
                 if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
                     if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
-                        log "Saved current brightness value $SAVED_BRIGHTNESS"
+                        log "[INFO] Saved current brightness value $SAVED_BRIGHTNESS"
                     else
                         log "[ERROR] Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
-                    log "Current brightness is 0, not saving."
+                    log "[INFO] Current brightness is 0, not saving."
                 fi
 
                 # Turn off the display by setting brightness to 0
                 if echo 0 > "$BRIGHTNESS_PATH"; then
-                    log "Brightness successfully set to 0"
+                    log "[INFO] Brightness successfully set to 0"
                 else
                     log "[ERROR] Failed to set brightness to 0"
                 fi
@@ -114,7 +114,7 @@ turn_off_display() {
                 --dest org.gnome.ScreenSaver \
                 --object-path /org/gnome/ScreenSaver \
                 --method org.gnome.ScreenSaver.SetActive true >/dev/null; then
-                log "Display locked via org.gnome.ScreenSaver.SetActive(true)"
+                log "[INFO] Display locked via org.gnome.ScreenSaver.SetActive(true)"
             else
                 log "[ERROR] Failed to lock display via D-Bus"
             fi
@@ -143,7 +143,7 @@ turn_on_display() {
                 if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
                     BRIGHTNESS="$SAVED_BRIGHTNESS"
                 else
-                    log "Saved brightness value is 0, keeping brightness at 100%"
+                    log "[INFO] Saved brightness value is 0, keeping brightness at 100%"
                 fi
             else
                 log "[ERROR] No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
@@ -151,7 +151,7 @@ turn_on_display() {
 
             # Set the brightness to the determined value
             if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
-                log "Brightness set to $BRIGHTNESS"
+                log "[INFO] Brightness set to $BRIGHTNESS"
             else
                 log "[ERROR] Failed to set brightness to $BRIGHTNESS"
             fi
@@ -163,7 +163,7 @@ turn_on_display() {
                 --dest org.gnome.ScreenSaver \
                 --object-path /org/gnome/ScreenSaver \
                 --method org.gnome.ScreenSaver.SetActive false >/dev/null; then
-                log "Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
+                log "[INFO] Display unlock requested via org.gnome.ScreenSaver.SetActive(false)"
             else
                 log "[ERROR] Failed to unlock display via D-Bus"
             fi
@@ -177,7 +177,7 @@ turn_on_display() {
 use_fbcli() {
     if [ "$NOTIFICATION_USE_FBCLI" == "true" ]; then
         if command -v fbcli >/dev/null 2>&1; then
-            log "Using fbcli for notification"
+            log "[INFO] Using fbcli for notification"
             sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
             sudo -u "$TARGET_USER" fbcli -E message-new-instant
         else
@@ -188,12 +188,12 @@ use_fbcli() {
 
 handle_notification_actions() {
     if [[ "$NOTIFICATION_TURN_ON_DISPLAY" == "true" ]]; then
-        log "Turning display on due to notification..."
+        log "[INFO] Turning display on due to notification..."
         turn_on_display
     fi
 
     if [[ "$NOTIFICATION_USE_FBCLI" == "true" ]]; then
-        log "Calling fbcli due to notification..."
+        log "[INFO] Calling fbcli due to notification..."
         use_fbcli
     fi
 }
@@ -244,10 +244,10 @@ is_rtc_wakeup() {
     diff=$((rtc_now - timestamp_file_ts))
 
     if (( diff >= 0 && diff <= RTC_WAKE_WINDOW_SECONDS )); then
-        log "RTC wake confirmed now: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
+        log "[INFO] RTC wake confirmed now: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
         return 0
     else
-        log "Not an RTC wake: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
+        log "[INFO] Not an RTC wake: $(date -d @$rtc_now), timestamp: $(date -d @$timestamp_file_ts), diff: $diff"
         return 1
     fi
 }
@@ -280,9 +280,9 @@ set_rtc_wakeup() {
     fi
 
     if is_quiet_hours; then
-        log "Currently in quiet hours"
+        log "[INFO] Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
+        log "[INFO] In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
         #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
@@ -290,7 +290,7 @@ set_rtc_wakeup() {
 
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
         adjusted_wake_ts=$(( next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60) ))
-        log "Alarm is earlier than current wake time - adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
+        log "[INFO] Alarm is earlier than current wake time - adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
@@ -316,7 +316,7 @@ set_rtc_wakeup() {
     
     if [[ "$rtc_actual" == "$tsf_actual" ]]; then
         #log "RTC wakealarm and saved timestamp match"
-        log "Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
+        log "[INFO] Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[ERROR] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
     fi
@@ -338,17 +338,17 @@ check_alarm_within_minutes() {
     next_alarm_ts=$(get_next_alarm_time)
 
     if [[ -z "$next_alarm_ts" || ! "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
-        log "No valid next alarm time found"
+        log "[INFO] No valid next alarm time found"
         return 1
     fi
 
     local now=$(date +%s)
     local diff=$(( next_alarm_ts - now ))
 
-    log "Next alarm in $diff seconds (limit: $(( WAKE_BEFORE_ALARM_MINUTES * 60 )) seconds)"
+    log "[INFO] Next alarm in $diff seconds (limit: $(( WAKE_BEFORE_ALARM_MINUTES * 60 )) seconds)"
 
     if (( diff >= 0 && diff <= WAKE_BEFORE_ALARM_MINUTES * 60 )); then
-        log "Alarm within next $WAKE_BEFORE_ALARM_MINUTES minutes detected"
+        log "[INFO] Alarm within next $WAKE_BEFORE_ALARM_MINUTES minutes detected"
         return 0
     fi
 
@@ -356,7 +356,7 @@ check_alarm_within_minutes() {
 }
 
 wait_for_internet() {
-    log "Waiting up to $MAX_WAIT seconds for internet..."
+    log "[INFO] Waiting up to $MAX_WAIT seconds for internet..."
     local start_time=$(date +%s)
 
     while true; do
@@ -364,17 +364,17 @@ wait_for_internet() {
         local elapsed=$((now - start_time))
 
         if (( elapsed >= MAX_WAIT )); then
-            log "[WARNING] Internet wait timeout after $MAX_WAIT seconds"
+            #log "[WARNING] Internet wait timeout after $MAX_WAIT seconds"
             return 1
         fi
 
         if status=$(nmcli networking connectivity 2>/dev/null) && [[ "$status" == "full" ]]; then
-            log "Internet connection is available (nmcli)"
+            #log "Internet connection is available (nmcli)"
             return 0
         fi
 
         if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null 2>&1; then
-            log "Internet connection is available (ping to $PING_HOST)"
+            #log "Internet connection is available (ping to $PING_HOST)"
             return 0
         fi
         sleep 1 # pause till next check
@@ -399,7 +399,7 @@ get_app_name_from_desktop_entry() {
 
 monitor_notifications() {
     local timeout_duration=${NOTIFICATION_TIMEOUT:-60}
-    log "Monitoring notifications for $timeout_duration seconds..."
+    log "[INFO] Monitoring notifications for $timeout_duration seconds..."
 
     local found_notification=0
 
@@ -417,10 +417,10 @@ monitor_notifications() {
             fi
 
             if is_whitelisted "$check_entry"; then
-                log "Allowed notification from: $check_entry"
+                log "[INFO] Allowed notification from: $check_entry"
                 return 0
             else
-                log "Disallowed notification from: $check_entry"
+                log "[INFO] Disallowed notification from: $check_entry"
             fi
         fi
     done < <(
@@ -455,26 +455,26 @@ if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
 fi
 
 if [[ "$MODE" == "pre" ]]; then
-    log "===== wakeup-check.sh started (mode: $MODE) ====="
+    log "[INFO] ===== wakeup-check.sh started (mode: $MODE) ====="
     turn_off_display
     set_rtc_wakeup
 fi
 
 if [[ "$MODE" == "post" ]]; then
-    log "===== wakeup-check.sh started (mode: $MODE) ====="
+    log "[INFO] ===== wakeup-check.sh started (mode: $MODE) ====="
     turn_off_display
     if is_rtc_wakeup; then
-        log "RTC wake detected."
+        log "[INFO] RTC wake detected."
 
         if check_alarm_within_minutes; then
-            log "Alarm is coming up soon - staying awake."
+            log "[INFO] Alarm is coming up soon - staying awake."
             turn_on_display
         elif is_quiet_hours; then
-            log "Currently in quiet hours - suspending again."
+            log "[INFO] Currently in quiet hours - suspending again."
             systemctl suspend
         else
             if wait_for_internet; then
-                log "Internet connection detected"
+                log "[INFO] Internet connection detected"
                 # Aufruf der monitor_notifications-Funktion
                 monitor_notifications
                 result=$?
@@ -497,7 +497,7 @@ if [[ "$MODE" == "post" ]]; then
             fi
         fi
     else
-        log "Not an RTC wake. -> turn on display"
+        log "[INFO] Not an RTC wake. -> turn on display"
         turn_on_display
     fi
 fi
