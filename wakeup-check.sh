@@ -490,6 +490,7 @@ if [[ "$MODE" == "post" ]]; then
                     systemctl suspend
                 else
                     log "[ERROR] Unexpected error occurred in notification monitoring. Exiting with code $result."
+                    turn_on_display
                 fi
             else
                 log "[WARNING] No internet connection detected - suspending"
