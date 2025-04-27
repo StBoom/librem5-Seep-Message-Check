@@ -8,6 +8,7 @@ Conflicts=wakeup-check-post.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/systemd-inhibit --what=sleep --who="wakeup-check.sh pre" --why="Running Pre-Suspend Tasks" /usr/local/bin/wakeup-check.sh pre
+RemainAfterExit=no
 
 [Install]
 WantedBy=sleep.target
