@@ -64,8 +64,6 @@ cleanup() {
         rm -f "$LOCKFILE"
         log "[INFO] Lockfile released and removed."
     fi
-    sleep 2
-    log "[INFO] Cleaning up before exit (mode: $MODE)."
 }
 
 on_interrupt() {
@@ -77,7 +75,6 @@ on_interrupt() {
 
 on_exit() {
     # Is always called when exiting, regardless of whether error or success
-    sync
     log "===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
 }
