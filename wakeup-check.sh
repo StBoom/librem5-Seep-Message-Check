@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+#set -euo pipefail
 
 # ====== Lockfile Management ======
 LOCKFILE="/var/lock/wakeup-check.lock"
@@ -421,10 +421,6 @@ monitor_notifications() {
 
             if is_whitelisted "$check_entry"; then
                 log "Allowed notification from: $check_entry"
-                handle_notification_actions
-                log "===== wakeup-check.sh (mode: $MODE) finished ====="
-                sync
-                sleep 2
                 return 0
             else
                 log "Disallowed notification from: $check_entry"
