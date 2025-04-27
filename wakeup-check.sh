@@ -426,7 +426,7 @@ monitor_notifications() {
     done < <(
         timeout "$timeout_duration" \
             sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-            busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null
+            busctl --user monitor org.freedesktop.Notifications --json=short 2>/dev/null || true
     )
 
     if [ "$found_notification" -eq 1 ]; then
