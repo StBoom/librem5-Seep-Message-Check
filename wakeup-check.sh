@@ -94,7 +94,10 @@ turn_off_display() {
                         log "[ERROR] Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
-                    log "[INFO] Current brightness is 0, not saving."
+                    log "[INFO] Current brightness is 0, saving minimum value (50)"
+                    if [ -z "$SAVED_BRIGHTNESS" ]; then
+                        echo "50" > "$BRIGHTNESS_SAVE_PATH"
+                    fi
                 fi
 
                 # Turn off the display by setting brightness to 0
@@ -140,10 +143,10 @@ turn_on_display() {
                 #log "Read saved brightness value: $SAVED_BRIGHTNESS"
 
                 # If the saved brightness is 0, we retain 100.
-                if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
+                if [ -z "$SAVED_BRIGHTNESS" ] || [ "$SAVED_BRIGHTNESS" -eq 0 ]; then
                     BRIGHTNESS="$SAVED_BRIGHTNESS"
                 else
-                    log "[INFO] Saved brightness value is 0, keeping brightness at 100%"
+                    log "[INFO] Saved brightness value is 0, keeping brightness at 100"
                 fi
             else
                 log "[ERROR] No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
