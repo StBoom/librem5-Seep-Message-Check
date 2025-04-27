@@ -480,6 +480,7 @@ if [[ "$MODE" == "post" ]]; then
                 log "Internet connection detected"
                 monitor_notifications
                 result=$?
+                log "rückmeldung ist $result"
                 if [[ $result -eq 0 ]]; then
                     handle_notification_actions
                 elif [[ $result -eq 124 ]]; then
