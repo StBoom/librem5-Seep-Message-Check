@@ -478,9 +478,11 @@ if [[ "$MODE" == "post" ]]; then
         else
             if wait_for_internet; then
                 log "Internet connection detected"
-                monitor_notifications
-                result=$?
-                log "rückmeldung ist $result"
+                monitor_notifications  # Der Befehl, der das Monitoring durchführt
+                result=$?              # Speichern des Rückgabewerts von monitor_notifications
+                log "Rückmeldung ist $result"  # Logge den Rückgabewert
+
+                # Weiterverarbeitung basierend auf dem Rückgabewert
                 if [[ $result -eq 0 ]]; then
                     handle_notification_actions
                 elif [[ $result -eq 124 ]]; then
