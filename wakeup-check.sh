@@ -1,5 +1,16 @@
 #!/bin/bash
 set -euo pipefail
+
+# ====== Lockfile Management ======
+LOCKFILE="/var/lock/wakeup-check.lock"
+
+# Try to acquire the lock
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Another instance is already running. Exiting." >> "/var/log/wakeup-check-error.log"
+    exit 1
+fi
+
 log() {
     local msg="$1"
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
@@ -48,19 +59,27 @@ DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
 cleanup() {
-    log "[INFO] Cleaning up before exit."
-    # Hier könntest du noch Aufräumarbeiten machen, z.B. temporäre Dateien löschen etc.
+    # release lock
+    if [ -e "$LOCKFILE" ]; then
+        flock -u 200
+        rm -f "$LOCKFILE"
+        log "[INFO] Lockfile released and removed."
+    fi
+    sleep 2
+    log "[INFO] Cleaning up before exit (mode: $MODE)."
 }
 
 on_interrupt() {
     log "[ERROR] Script interrupted (SIGINT or SIGTERM)."
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
     exit 6
 }
 
 on_exit() {
-    # Wird immer beim Beenden aufgerufen, egal ob Fehler oder Erfolg
-    log "[INFO] Script exiting."
+    # Is always called when exiting, regardless of whether error or success
+    sync
+    log "===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
 }
 
@@ -117,14 +136,14 @@ turn_on_display() {
         brightness)
             #log "Turning on display via brightness method..."
 
-            # Standardwert setzen
+            # Default Value
             BRIGHTNESS=100
 
             if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
                 #log "Read saved brightness value: $SAVED_BRIGHTNESS"
 
-                # Wenn die gespeicherte Helligkeit 0 ist, behalten wir 100 bei.
+                # If the saved brightness is 0, we retain 100.
                 if [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
                     BRIGHTNESS="$SAVED_BRIGHTNESS"
                 else
@@ -134,7 +153,7 @@ turn_on_display() {
                 log "[ERROR] No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
             fi
 
-            # Setze die Helligkeit auf den ermittelten Wert
+            # Set the brightness to the determined value
             if echo "$BRIGHTNESS" > "$BRIGHTNESS_PATH"; then
                 log "Brightness set to $BRIGHTNESS"
             else
@@ -189,7 +208,7 @@ is_quiet_hours() {
     local start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
     local end_ts
 
-    # numerischer Vergleich zur Erkennung "über Mitternacht"
+    # Numerical comparison for detection “over midnight”
     local start_hms=$(date -d "$QUIET_HOURS_START" +%s)
     local end_hms=$(date -d "$QUIET_HOURS_END" +%s)
 
@@ -416,9 +435,9 @@ monitor_notifications() {
     )
 
     if [ "$found_notification" -eq 1 ]; then
-        return 1  # Notifications kamen, aber keine erlaubte
+        return 1  # Notifications came, but none allowed
     else
-        return 124  # Keine Notification kam
+        return 124  # No notification came
     fi
 }
 
@@ -437,8 +456,6 @@ if [[ "$MODE" != "pre" && "$MODE" != "post" ]]; then
     log "[ERROR] Invalid mode: $MODE (expected 'pre' or 'post')"
     exit 1
 fi
-
-
 
 if [[ "$MODE" == "pre" ]]; then
     log "===== wakeup-check.sh started (mode: $MODE) ====="
@@ -486,7 +503,5 @@ if [[ "$MODE" == "post" ]]; then
     fi
 fi
 
-sync
-log "===== wakeup-check.sh finished (mode: $MODE) ====="
-sleep 2
 exit 0
+
