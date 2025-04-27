@@ -439,7 +439,6 @@ monitor_notifications() {
         log "[INFO] Timeout reached without receiving notifications."
         return 124  # No notifications within the timeout period.
     fi
-    log "[INFO] Ende"
 }
 
 # ===== TRAPS =====
@@ -479,22 +478,21 @@ if [[ "$MODE" == "post" ]]; then
         else
             if wait_for_internet; then
                 log "Internet connection detected"
-                monitor_notifications  # Der Befehl, der das Monitoring durchführt
-                result=$?              # Speichern des Rückgabewerts von monitor_notifications
-                log "Rückmeldung ist $result"  # Logge den Rückgabewert
-
-                # Weiterverarbeitung basierend auf dem Rückgabewert
+                # Aufruf der monitor_notifications-Funktion
+                monitor_notifications
+                result=$?
+                # Überprüfen der Rückgabe und Ausgabe von entsprechenden Meldungen
                 if [[ $result -eq 0 ]]; then
+                    log "[INFO] Notification monitoring completed successfully, allowed notification received."
                     handle_notification_actions
                 elif [[ $result -eq 124 ]]; then
-                    log "Notification timeout reached - suspending again."
+                    log "[INFO] Timeout reached without receiving notifications."
                     systemctl suspend
                 elif [[ $result -eq 1 ]]; then
-                    log "Notification monitor returned 1 - suspending."
+                    log "[INFO] Notification monitoring returned 1 - disallowed notification or error."
                     systemctl suspend
                 else
-                    log "Notification monitor exited unexpectedly - suspending."
-                    systemctl suspend
+                    log "[ERROR] Unexpected error occurred in notification monitoring. Exiting with code $result."
                 fi
             else
                 log "[WARNING] No internet connection detected - suspending"
