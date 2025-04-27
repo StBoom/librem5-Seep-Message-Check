@@ -2,6 +2,7 @@
 
 # ---- Define Paths ----
 SCRIPT_NAME="wakeup-check.sh"
+SCRIPT_SOURCE="./$SCRIPT_NAME"
 SCRIPT_PATH="/usr/local/bin/$SCRIPT_NAME"
 
 LOG_FILE="/var/log/wakeup-check.log"
@@ -9,11 +10,14 @@ WAKE_TIMESTAMP_FILE="/var/lib/wakeup-check/last_wake_timestamp"
 BRIGHTNESS_STORE_FILE="/var/lib/wakeup-check/last_brightness"
 
 PRE_SERVICE_NAME="wakeup-check-pre.service"
+PRE_SERVICE_SOURCE="./$PRE_SERVICE_NAME"
 PRE_SERVICE_PATH="/etc/systemd/system/$PRE_SERVICE_NAME"
 
 POST_SERVICE_NAME="wakeup-check-post.service"
+POST_SERVICE_SOURCE="./$POST_SERVICE_NAME"
 POST_SERVICE_PATH="/etc/systemd/system/$POST_SERVICE_NAME"
 
+CONFIG_SOURCE="./wakeup-check.conf"
 CONFIG_PATH="/etc/wakeup-check.conf"
 
 # ---- Helper Function: Check Root Privileges ----
@@ -22,72 +26,97 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# ---- Remove Pre-Suspend Service ----
-echo "Removing Pre-Suspend systemd Service..."
-if [ -f "$PRE_SERVICE_PATH" ]; then
-    rm "$PRE_SERVICE_PATH"
-    echo "Pre-Suspend Service removed."
+# ---- Copy Script ----
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "Copying $SCRIPT_NAME to $SCRIPT_PATH..."
+    cp "$SCRIPT_SOURCE" "$SCRIPT_PATH"
 else
-    echo "Pre-Suspend Service not found at $PRE_SERVICE_PATH."
+    echo "$SCRIPT_PATH already exists."
+    read -p "Do you want to overwrite the script? (y/N): " overwrite_script
+    if [[ "$overwrite_script" =~ ^[Yy]$ ]]; then
+        cp "$SCRIPT_SOURCE" "$SCRIPT_PATH"
+        echo "Script has been overwritten at $SCRIPT_PATH."
+    else
+        echo "Keeping the existing script."
+    fi
 fi
 
-# ---- Remove Post-Suspend Service ----
-echo "Removing Post-Suspend systemd Service..."
-if [ -f "$POST_SERVICE_PATH" ]; then
-    rm "$POST_SERVICE_PATH"
-    echo "Post-Suspend Service removed."
-else
-    echo "Post-Suspend Service not found at $POST_SERVICE_PATH."
-fi
-
-# ---- Remove Script ----
-echo "Removing script $SCRIPT_PATH..."
+# ---- Set Permissions for the Script ----
 if [ -f "$SCRIPT_PATH" ]; then
-    rm "$SCRIPT_PATH"
-    echo "Script removed."
+    chmod 755 "$SCRIPT_PATH"
+    chown root:root "$SCRIPT_PATH"
 else
-    echo "Script not found at $SCRIPT_PATH."
+    echo "Error: Script not found at $SCRIPT_PATH. Aborting."
+    exit 1
 fi
 
-# ---- Remove Configuration File ----
-echo "Removing configuration file $CONFIG_PATH..."
+# ---- Prepare Directories and Files ----
+echo "Creating necessary directories and files..."
+
+mkdir -p /var/lib/wakeup-check
+chmod 755 /var/lib/wakeup-check
+
+[ -f "$LOG_FILE" ] || { touch "$LOG_FILE"; chmod 644 "$LOG_FILE"; }
+
+[ -f "$WAKE_TIMESTAMP_FILE" ] || { touch "$WAKE_TIMESTAMP_FILE"; chmod 644 "$WAKE_TIMESTAMP_FILE"; }
+[ -f "$BRIGHTNESS_STORE_FILE" ] || { touch "$BRIGHTNESS_STORE_FILE"; chmod 644 "$BRIGHTNESS_STORE_FILE"; }
+
+# ---- Install Configuration File ----
 if [ -f "$CONFIG_PATH" ]; then
-    rm "$CONFIG_PATH"
-    echo "Configuration file removed."
+    echo "$CONFIG_PATH already exists."
+    read -p "Do you want to overwrite the configuration file? (y/N): " overwrite_conf
+    if [[ "$overwrite_conf" =~ ^[Yy]$ ]]; then
+        cp "$CONFIG_SOURCE" "$CONFIG_PATH"
+        chmod 644 "$CONFIG_PATH"
+        echo "Configuration file has been overwritten."
+    else
+        echo "Keeping the existing configuration file."
+    fi
 else
-    echo "Configuration file not found at $CONFIG_PATH."
+    echo "Installing configuration file to $CONFIG_PATH..."
+    cp "$CONFIG_SOURCE" "$CONFIG_PATH"
+    chmod 644 "$CONFIG_PATH"
+    echo "Configuration file has been installed."
 fi
 
-# ---- Remove Log Files ----
-echo "Removing log file $LOG_FILE..."
-if [ -f "$LOG_FILE" ]; then
-    rm "$LOG_FILE"
-    echo "Log file removed."
+# ---- Install Pre-Suspend systemd Service ----
+echo "Installing systemd Pre-Suspend Service..."
+
+if [ ! -f "$PRE_SERVICE_PATH" ]; then
+    cp "$PRE_SERVICE_SOURCE" "$PRE_SERVICE_PATH"
+    echo "Pre-Suspend Service installed at $PRE_SERVICE_PATH."
 else
-    echo "Log file not found at $LOG_FILE."
+    echo "$PRE_SERVICE_PATH already exists."
+    read -p "Do you want to overwrite the Pre-Suspend Service? (y/N): " overwrite_pre
+    if [[ "$overwrite_pre" =~ ^[Yy]$ ]]; then
+        cp "$PRE_SERVICE_SOURCE" "$PRE_SERVICE_PATH"
+        echo "Pre-Suspend Service has been overwritten."
+    else
+        echo "Keeping the existing Pre-Suspend Service."
+    fi
 fi
 
-# ---- Remove Other Files ----
-echo "Removing other related files..."
-if [ -f "$WAKE_TIMESTAMP_FILE" ]; then
-    rm "$WAKE_TIMESTAMP_FILE"
-    echo "Wake timestamp file removed."
+# ---- Install Post-Suspend systemd Service ----
+echo "Installing systemd Post-Suspend Service..."
+
+if [ ! -f "$POST_SERVICE_PATH" ]; then
+    cp "$POST_SERVICE_SOURCE" "$POST_SERVICE_PATH"
+    echo "Post-Suspend Service installed at $POST_SERVICE_PATH."
 else
-    echo "Wake timestamp file not found at $WAKE_TIMESTAMP_FILE."
+    echo "$POST_SERVICE_PATH already exists."
+    read -p "Do you want to overwrite the Post-Suspend Service? (y/N): " overwrite_post
+    if [[ "$overwrite_post" =~ ^[Yy]$ ]]; then
+        cp "$POST_SERVICE_SOURCE" "$POST_SERVICE_PATH"
+        echo "Post-Suspend Service has been overwritten."
+    else
+        echo "Keeping the existing Post-Suspend Service."
+    fi
 fi
 
-if [ -f "$BRIGHTNESS_STORE_FILE" ]; then
-    rm "$BRIGHTNESS_STORE_FILE"
-    echo "Brightness store file removed."
-else
-    echo "Brightness store file not found at $BRIGHTNESS_STORE_FILE."
-fi
-
-# ---- Reload systemd Daemon and Disable Services ----
-echo "Reloading systemd and disabling services..."
+# ---- Reload systemd and Enable Services ----
+echo "Reloading systemd and enabling Pre-Suspend Service..."
 systemctl daemon-reload
-systemctl disable wakeup-check-pre.service
-systemctl disable wakeup-check-post.service
+systemctl enable wakeup-check-pre.service
+systemctl enable wakeup-check-post.service
 
-# ---- Final Message ----
-echo "Uninstallation complete."
+echo "Installation complete."
