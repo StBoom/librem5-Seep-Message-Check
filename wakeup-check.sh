@@ -430,10 +430,10 @@ monitor_notifications() {
     )
 
     if [ "$found_notification" -eq 1 ]; then
-        log "notificcation"
+        #log "notificcation"
         return 1  # Notifications kamen, aber keine erlaubte
     else
-        log "timeout"
+        #log "timeout"
         return 124  # Keine Notification kam
     fi
 }
@@ -480,13 +480,13 @@ if [[ "$MODE" == "post" ]]; then
                 result=$?
                 # Überprüfen der Rückgabe und Ausgabe von entsprechenden Meldungen
                 if [[ $result -eq 0 ]]; then
-                    log "[INFO] Notification monitoring completed successfully, allowed notification received."
+                    log "[INFO] Notification monitoring completed successfully, allowed notification received. -> notify"
                     handle_notification_actions
                 elif [[ $result -eq 124 ]]; then
-                    log "[INFO] Timeout reached without receiving notifications."
+                    log "[INFO] Timeout reached without receiving notifications. -> sleep"
                     systemctl suspend
                 elif [[ $result -eq 1 ]]; then
-                    log "[INFO] Notification monitoring returned 1 - disallowed notification or error."
+                    log "[INFO] Notification monitoring returned 1 - disallowed notification or error. -> sleep"
                     systemctl suspend
                 else
                     log "[ERROR] Unexpected error occurred in notification monitoring. Exiting with code $result."
@@ -497,7 +497,7 @@ if [[ "$MODE" == "post" ]]; then
             fi
         fi
     else
-        log "Not an RTC wake."
+        log "Not an RTC wake. -> turn on display"
         turn_on_display
     fi
 fi
