@@ -1,1 +1,11 @@
+[Unit]
+Description=Wakeup Check (Post)
+After=wakeup-check-pre.service
+Conflicts=wakeup-check-pre.service
 
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemd-inhibit --what=sleep --who="wakeup-check.sh post" --why="Running Post-Suspend Tasks" /usr/local/bin
+
+[Install]
+WantedBy=multi-user.target
