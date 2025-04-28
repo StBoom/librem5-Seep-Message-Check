@@ -68,6 +68,7 @@ cleanup() {
 
 on_interrupt() {
     log "[ERROR] Script interrupted (SIGINT or SIGTERM)."
+    turn_on_display
     log "[INFO] ===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
     exit 6
@@ -85,32 +86,45 @@ turn_off_display() {
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
             if [ -f "$BRIGHTNESS_PATH" ]; then
-                SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
+                CURRENT_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
 
-                if [ -n "$SAVED_BRIGHTNESS" ] && [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
-                    # Speichere die aktuelle (aktive) Helligkeit
-                    if echo "$SAVED_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
-                        log "[INFO] Saved current brightness value: $SAVED_BRIGHTNESS"
+                if [ -n "$CURRENT_BRIGHTNESS" ] && [ "$CURRENT_BRIGHTNESS" -ne 0 ]; then
+                    # Display ist noch an, aktuellen Wert sichern
+                    if echo "$CURRENT_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
+                        log "[INFO] Saved current brightness value: $CURRENT_BRIGHTNESS"
                     else
                         log "[ERROR] Failed to save brightness to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
-                    # SAVED_BRIGHTNESS ist leer oder 0
-                    log "[WARN] Current brightness is 0 or empty."
+                    # Display ist bereits aus (Helligkeit 0)
+                    log "[WARN] Current brightness is 0"
 
-                    if [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -ne 0 ]; then
-                        # Falls eine Default-Helligkeit gesetzt ist
-                        if echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
-                            log "[INFO] Saved default brightness value: $BRIGHTNESS"
+                    if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
+                        SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
+
+                        if [ -n "$SAVED_BRIGHTNESS" ] && [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
+                            log "[INFO] Existing saved brightness value ($SAVED_BRIGHTNESS) is valid, no overwrite needed."
                         else
-                            log "[ERROR] Failed to save default brightness to $BRIGHTNESS_SAVE_PATH"
+                            log "[WARN] No valid saved brightness, saving default brightness $BRIGHTNESS"
+                            if [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -ne 0 ]; then
+                                echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
+                                log "[INFO] Default brightness $BRIGHTNESS saved"
+                            else
+                                log "[ERROR] BRIGHTNESS is not set or invalid, cannot save default"
+                            fi
                         fi
                     else
-                        log "[ERROR] Default brightness BRIGHTNESS is not set or invalid (0)"
+                        log "[WARN] Brightness save file missing or empty, saving default brightness $BRIGHTNESS"
+                        if [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -ne 0 ]; then
+                            echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
+                            log "[INFO] Default brightness $BRIGHTNESS saved"
+                        else
+                            log "[ERROR] BRIGHTNESS is not set or invalid, cannot save default"
+                        fi
                     fi
                 fi
 
-                # Display ausschalten
+                # Jetzt Display ausschalten
                 if echo 0 > "$BRIGHTNESS_PATH"; then
                     log "[INFO] Brightness successfully set to 0"
                 else
@@ -138,7 +152,7 @@ turn_off_display() {
             ;;
         
         *)
-            log "[ERROR] Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check your configuration"
+            log "[ERROR] Unknown DISPLAY_CONTROL_METHOD: $DISPLAY_CONTROL_METHOD — check config file"
             ;;
     esac
 }
