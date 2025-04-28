@@ -136,7 +136,7 @@ turn_on_display() {
             #log "Turning on display via brightness method..."
 
             # Default Value
-            BRIGHTNESS=100
+            BRIGHTNESS=50
 
             if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
@@ -146,7 +146,7 @@ turn_on_display() {
                 if [ -z "$SAVED_BRIGHTNESS" ] || [ "$SAVED_BRIGHTNESS" -eq 0 ]; then
                     BRIGHTNESS="$SAVED_BRIGHTNESS"
                 else
-                    log "[INFO] Saved brightness value is 0, keeping brightness at 100"
+                    log "[INFO] Saved brightness value is 0, keeping brightness at 50"
                 fi
             else
                 log "[ERROR] No saved brightness value found or file is empty, setting brightness to $BRIGHTNESS"
