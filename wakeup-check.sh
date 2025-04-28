@@ -24,7 +24,7 @@ fi
 source "$CONFIG_FILE"
 
 # Verify required variables are set
-REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT WAKE_BEFORE_ALARM_MINUTES MAX_WAIT)
+REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT WAKE_BEFORE_ALARM_MINUTES MAX_WAIT BRIGHTNESS)
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var}" ]; then
         log "[ERROR] Required config variable '$var' is not set."
@@ -94,9 +94,9 @@ turn_off_display() {
                         log "[ERROR] Failed to write brightness value to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
-                    log "[INFO] Current brightness is 0, saving minimum value (50)"
+                    log "[INFO] Current brightness is 0, saving default value $BRIGHTNESS"
                     if [ -z "$SAVED_BRIGHTNESS" ]; then
-                        echo "50" > "$BRIGHTNESS_SAVE_PATH"
+                        echo $BRIGHTNESS > "$BRIGHTNESS_SAVE_PATH"
                     fi
                 fi
 
@@ -136,7 +136,7 @@ turn_on_display() {
             #log "Turning on display via brightness method..."
 
             # Default Value
-            BRIGHTNESS=50
+            #BRIGHTNESS=50
 
             if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
                 SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
