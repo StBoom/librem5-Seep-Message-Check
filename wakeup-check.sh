@@ -304,7 +304,7 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    #log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
