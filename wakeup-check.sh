@@ -304,23 +304,23 @@ set_rtc_wakeup() {
     fi
 
     quiet_end_ts=$end_ts
-    log "Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
+    log "[INFO] Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
-        log "Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
+        log "[INFO] Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
     else
-        #log "No valid alarm found - skipping alarm adjustment"
+        [INFO] log "No valid alarm found - skipping alarm adjustment"
         next_alarm_ts=""
     fi
 
     if is_quiet_hours; then
-        log "[INFO] Currently in quiet hours"
+        #log "[INFO] Currently in quiet hours"
         wake_ts=$quiet_end_ts
         log "[INFO] In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
     else
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
-        #log "Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
+        log "[INFO] Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
