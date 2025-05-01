@@ -29,51 +29,8 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 log() {
-    local level="$1"
-    local msg="$2"
-
-    # Load the current log level from the config file
-    local current_level="$LOGLEVEL"
-
-    # Define a hierarchy of log levels
-    local levels=("DEBUG" "INFO" "WARN" "ERROR")
-    local log_level_index=-1
-    local current_level_index=-1
-
-    # Find the index for the level and current level
-    for index in "${!levels[@]}"; do
-        if [[ "${levels[$index]}" == "$level" ]]; then
-            log_level_index=$index
-        fi
-        if [[ "${levels[$index]}" == "$current_level" ]]; then
-            current_level_index=$index
-        fi
-    done
-
-    # Check if both the log level and the current level were valid
-    if [[ $log_level_index -eq -1 ]]; then
-        echo "Error: Invalid log level detected ($level)"
-        return 1
-    fi
-
-    if [[ $current_level_index -eq -1 ]]; then
-        echo "Error: Invalid current log level detected ($current_level)"
-        return 1
-    fi
-
-    # Only log messages that are at the same level or higher
-    if [[ "$log_level_index" -ge "$current_level_index" ]]; then
-        local timestamp
-        timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
-
-        # Check if the message already contains the level (e.g., [INFO], [WARN])
-        # Remove it from the message to avoid duplication
-        if [[ "$msg" =~ ^\[(INFO|DEBUG|WARN|ERROR)\] ]]; then
-            msg="${msg#*\] }"  # Remove the level at the beginning
-        fi
-
-        echo "[$timestamp] [$level] $msg" >> "$LOGFILE"
-    fi
+    local msg="$1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
 }
 
 check_dependencies() {
