@@ -62,7 +62,7 @@ cleanup() {
     if [ -e "$LOCKFILE" ]; then
         flock -u 200
         rm -f "$LOCKFILE"
-        log "[INFO] Lockfile released and removed."
+        #log "[INFO] Lockfile released and removed."
     fi
 }
 
