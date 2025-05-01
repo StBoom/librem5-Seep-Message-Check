@@ -5,11 +5,10 @@
 LOCKFILE="/var/lock/wakeup-check.lock"
 
 # Try to acquire the lock (wait if another instance is running)
-exec 200>"$LOCKFILE"  # Öffne Datei mit Deskriptor 200
+exec 200>"$LOCKFILE"  # Open file with descriptor 200
 
-# Versuche, den Lock zu setzen, warte wenn eine andere Instanz läuft
-flock 200 || { echo "[$(date +'%Y-%m-%d %H:%M:%S')] Another instance is already running. Waiting..."; flock 200; }
-
+# Attempt to acquire the lock, wait if another instance is running
+flock 200 || { log "[INFO] Another instance is already running. Waiting..."; flock 200; }
 
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
@@ -28,14 +27,15 @@ for var in "${REQUIRED_VARS[@]}"; do
         exit 1
     fi
 done
+
 log() {
     local level="$1"
     local msg="$2"
 
-    # Lade das Log-Level aus der Konfigurationsdatei
+    # Load the current log level from the config file
     local current_level="$LOGLEVEL"
 
-    # Definiere eine Reihenfolge der Log-Level
+    # Define a hierarchy of log levels
     local levels=("DEBUG" "INFO" "WARN" "ERROR")
     local level_index
     local current_level_index
@@ -48,27 +48,29 @@ log() {
         fi
     done
 
-    # Nur Logs auf dem gleichen Level oder höher ausgeben
+    # Only log messages that are at the same level or higher
     if [[ "$log_level_index" -ge "$current_level_index" ]]; then
         local timestamp
         timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
         echo "[$timestamp] [$level] $msg" >> "$LOGFILE"
     fi
 }
+
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed)
     local missing=0
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
-            log "[ERROR] '$dep' ist nicht installiert oder nicht im PATH."
+            log "[ERROR] '$dep' is not installed or not in PATH."
             missing=1
         fi
     done
     if [ "$missing" -ne 0 ]; then
-        log "[ERROR] installiere die fehlenden Abhängigkeiten und versuche es erneut."
+        log "[ERROR] Install the missing dependencies and try again."
         exit 1
     fi
 }
+
 check_dependencies
 
 TARGET_UID=$(id -u "$TARGET_USER")
@@ -81,11 +83,11 @@ DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TARGET_UID}/bus"
 XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
 
 cleanup() {
-    # release lock
+    # Release the lock
     if [ -e "$LOCKFILE" ]; then
         flock -u 200
         rm -f "$LOCKFILE"
-        #log "[INFO] Lockfile released and removed."
+        log "[INFO] Lockfile released and removed."
     fi
 }
 
@@ -98,13 +100,13 @@ on_interrupt() {
 }
 
 on_exit() {
-    # Is always called when exiting, regardless of whether error or success
+    # Called when exiting, regardless of whether it's due to an error or success
     log "[INFO] ===== wakeup-check.sh finished (mode: $MODE) ====="
     cleanup
 }
 
 turn_off_display() {
-    log "[INFO] turn off display ($DISPLAY_CONTROL_METHOD)"
+    log "[INFO] Turning off display ($DISPLAY_CONTROL_METHOD)"
 
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
@@ -112,42 +114,25 @@ turn_off_display() {
                 CURRENT_BRIGHTNESS=$(cat "$BRIGHTNESS_PATH")
 
                 if [ -n "$CURRENT_BRIGHTNESS" ] && [ "$CURRENT_BRIGHTNESS" -ne 0 ]; then
-                    # Display ist noch an, aktuellen Wert sichern
+                    # Display is still on, save the current value
                     if echo "$CURRENT_BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"; then
                         log "[INFO] Saved current brightness value: $CURRENT_BRIGHTNESS"
                     else
                         log "[ERROR] Failed to save brightness to $BRIGHTNESS_SAVE_PATH"
                     fi
                 else
-                    # Display ist bereits aus (Helligkeit 0)
+                    # Display is already off (brightness 0)
                     log "[WARN] Current brightness is 0"
-
                     if [ -f "$BRIGHTNESS_SAVE_PATH" ] && [ -s "$BRIGHTNESS_SAVE_PATH" ]; then
                         SAVED_BRIGHTNESS=$(cat "$BRIGHTNESS_SAVE_PATH")
-
-                        if [ -n "$SAVED_BRIGHTNESS" ] && [ "$SAVED_BRIGHTNESS" -ne 0 ]; then
-                            log "[INFO] Existing saved brightness value ($SAVED_BRIGHTNESS) is valid, no overwrite needed."
-                        else
-                            log "[WARN] No valid saved brightness, saving default brightness $BRIGHTNESS"
-                            if [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -ne 0 ]; then
-                                echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
-                                log "[INFO] Default brightness $BRIGHTNESS saved"
-                            else
-                                log "[ERROR] BRIGHTNESS is not set or invalid, cannot save default"
-                            fi
-                        fi
+                        log "[INFO] Existing saved brightness value ($SAVED_BRIGHTNESS) is valid."
                     else
-                        log "[WARN] Brightness save file missing or empty, saving default brightness $BRIGHTNESS"
-                        if [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -ne 0 ]; then
-                            echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
-                            log "[INFO] Default brightness $BRIGHTNESS saved"
-                        else
-                            log "[ERROR] BRIGHTNESS is not set or invalid, cannot save default"
-                        fi
+                        log "[WARN] No valid saved brightness, saving default brightness $BRIGHTNESS"
+                        echo "$BRIGHTNESS" > "$BRIGHTNESS_SAVE_PATH"
                     fi
                 fi
 
-                # Jetzt Display ausschalten
+                # Now turn off the display
                 if echo 0 > "$BRIGHTNESS_PATH"; then
                     log "[INFO] Brightness successfully set to 0"
                 else
@@ -181,7 +166,7 @@ turn_off_display() {
 }
 
 turn_on_display() {
-    log "turn_on_display($DISPLAY_CONTROL_METHOD)"
+    log "[INFO] Turning on display ($DISPLAY_CONTROL_METHOD)"
 
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
@@ -459,21 +444,17 @@ wait_for_internet() {
         local now=$(date +%s)
         local elapsed=$((now - start_time))
 
-        if (( elapsed >= MAX_WAIT )); then
-            #log "[WARNING] Internet wait timeout after $MAX_WAIT seconds"
-            return 1
+        if [ "$elapsed" -ge "$MAX_WAIT" ]; then
+            log "[ERROR] Timeout reached. Internet connection not available within $MAX_WAIT seconds."
+            break
         fi
 
-        if status=$(nmcli networking connectivity 2>/dev/null) && [[ "$status" == "full" ]]; then
-            #log "Internet connection is available (nmcli)"
-            return 0
+        if ping -c 1 "$PING_HOST" &>/dev/null; then
+            log "[INFO] Internet connection established after $elapsed seconds."
+            break
         fi
 
-        if ping -q -c 1 -W 2 "$PING_HOST" >/dev/null 2>&1; then
-            #log "Internet connection is available (ping to $PING_HOST)"
-            return 0
-        fi
-        sleep 1 # pause till next check
+        sleep 1
     done
 }
 
