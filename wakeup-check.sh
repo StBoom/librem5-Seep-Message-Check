@@ -65,10 +65,16 @@ log() {
     if [[ "$log_level_index" -ge "$current_level_index" ]]; then
         local timestamp
         timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
+
+        # Check if the message already contains the level (e.g., [INFO], [WARN])
+        # Remove it from the message to avoid duplication
+        if [[ "$msg" =~ ^\[(INFO|DEBUG|WARN|ERROR)\] ]]; then
+            msg="${msg#*\] }"  # Remove the level at the beginning
+        fi
+
         echo "[$timestamp] [$level] $msg" >> "$LOGFILE"
     fi
 }
-
 
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed jq)
