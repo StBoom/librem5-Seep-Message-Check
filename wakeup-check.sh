@@ -357,7 +357,7 @@ set_rtc_wakeup() {
     fi
 }
 
-get_next_alarm_time() {
+get_next_alarm_time_alt() {
     alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gdbus call --session \
         --dest org.gnome.clocks \
@@ -366,6 +366,28 @@ get_next_alarm_time() {
         grep -oP '\\d{10}' | sort -n | head -1)
 
     echo "$alarm_time"
+}
+
+get_next_alarm_time() {
+    alarms_json=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+        gsettings get org.gnome.clocks alarms)
+
+    # Leeres Ergebnis? Dann abbrechen
+    if [[ -z "$alarms_json" || "$alarms_json" == "@as []" ]]; then
+        echo ""
+        return
+    fi
+
+    # Extrahiere alle ring_time-Zeiten im ISO-Format
+    alarm_times=$(echo "$alarms_json" | grep -oP "'ring_time': <'\K[^']+")
+
+    # Finde den frühesten Zeitpunkt (sortiere nach ISO-Zeit)
+    next_alarm=$(echo "$alarm_times" | sort | head -n1)
+
+    # Optional: in UNIX-Timestamp umwandeln
+    next_ts=$(date --date="$next_alarm" +%s 2>/dev/null)
+
+    echo "$next_ts"
 }
 
 check_alarm_within_minutes() {
