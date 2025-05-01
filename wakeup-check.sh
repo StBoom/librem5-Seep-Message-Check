@@ -37,14 +37,10 @@ log() {
 
     # Define a hierarchy of log levels
     local levels=("DEBUG" "INFO" "WARN" "ERROR")
-    local log_level_index
-    local current_level_index
+    local log_level_index=-1
+    local current_level_index=-1
 
-    # Initialisieren der Indizes auf -1, falls kein Level gefunden wird
-    log_level_index=-1
-    current_level_index=-1
-
-    # Bestimme die Position des Log-Levels und des aktuellen Levels in der Hierarchie
+    # Find the index for the level and current level
     for index in "${!levels[@]}"; do
         if [[ "${levels[$index]}" == "$level" ]]; then
             log_level_index=$index
@@ -54,19 +50,25 @@ log() {
         fi
     done
 
-    # Sicherstellen, dass sowohl das Level als auch das aktuelle Level korrekt gefunden wurden
-    if [[ $log_level_index -eq -1 ]] || [[ $current_level_index -eq -1 ]]; then
-        echo "Error: Invalid log level detected"
+    # Check if both the log level and the current level were valid
+    if [[ $log_level_index -eq -1 ]]; then
+        echo "Error: Invalid log level detected ($level)"
         return 1
     fi
 
-    # Nur loggen, wenn der log_level_index gleich oder größer als der current_level_index ist
+    if [[ $current_level_index -eq -1 ]]; then
+        echo "Error: Invalid current log level detected ($current_level)"
+        return 1
+    fi
+
+    # Only log messages that are at the same level or higher
     if [[ "$log_level_index" -ge "$current_level_index" ]]; then
         local timestamp
         timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
         echo "[$timestamp] [$level] $msg" >> "$LOGFILE"
     fi
 }
+
 
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed jq)
