@@ -37,18 +37,30 @@ log() {
 
     # Define a hierarchy of log levels
     local levels=("DEBUG" "INFO" "WARN" "ERROR")
-    local level_index
+    local log_level_index
     local current_level_index
-    for level_index in "${!levels[@]}"; do
-        if [[ "${levels[$level_index]}" == "$level" ]]; then
-            local log_level_index=$level_index
+
+    # Initialisieren der Indizes auf -1, falls kein Level gefunden wird
+    log_level_index=-1
+    current_level_index=-1
+
+    # Bestimme die Position des Log-Levels und des aktuellen Levels in der Hierarchie
+    for index in "${!levels[@]}"; do
+        if [[ "${levels[$index]}" == "$level" ]]; then
+            log_level_index=$index
         fi
-        if [[ "${levels[$level_index]}" == "$current_level" ]]; then
-            current_level_index=$level_index
+        if [[ "${levels[$index]}" == "$current_level" ]]; then
+            current_level_index=$index
         fi
     done
 
-    # Only log messages that are at the same level or higher
+    # Sicherstellen, dass sowohl das Level als auch das aktuelle Level korrekt gefunden wurden
+    if [[ $log_level_index -eq -1 ]] || [[ $current_level_index -eq -1 ]]; then
+        echo "Error: Invalid log level detected"
+        return 1
+    fi
+
+    # Nur loggen, wenn der log_level_index gleich oder größer als der current_level_index ist
     if [[ "$log_level_index" -ge "$current_level_index" ]]; then
         local timestamp
         timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
