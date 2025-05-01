@@ -310,7 +310,7 @@ set_rtc_wakeup() {
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
         log "[INFO] Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
     else
-        [INFO] log "No valid alarm found - skipping alarm adjustment"
+        log "[INFO] No valid alarm found - skipping alarm adjustment"
         next_alarm_ts=""
     fi
 
