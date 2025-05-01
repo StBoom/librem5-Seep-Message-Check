@@ -357,37 +357,53 @@ set_rtc_wakeup() {
     fi
 }
 
-get_next_alarm_time_alt() {
-    alarm_time=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        gdbus call --session \
-        --dest org.gnome.clocks \
-        --object-path /org/gnome/clocks/AlarmModel \
-        --method org.gnome.clocks.AlarmModel.ListAlarms 2>/dev/null |
-        grep -oP '\\d{10}' | sort -n | head -1)
-
-    echo "$alarm_time"
-}
-
 get_next_alarm_time() {
+    log "[INFO] Retrieving alarms from GSettings for user: $TARGET_USER"
+
     alarms_json=$(sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
         gsettings get org.gnome.clocks alarms)
 
-    # Leeres Ergebnis? Dann abbrechen
-    if [[ -z "$alarms_json" || "$alarms_json" == "@as []" ]]; then
+    if [[ $? -ne 0 ]]; then
+        log "[ERROR] Failed to read GSettings for org.gnome.clocks alarms"
         echo ""
         return
     fi
 
-    # Extrahiere alle ring_time-Zeiten im ISO-Format
+    if [[ -z "$alarms_json" || "$alarms_json" == "@as []" ]]; then
+        log "[INFO] No alarms found in GSettings"
+        echo ""
+        return
+    fi
+
+    log "[DEBUG] Raw alarm data: $alarms_json"
+
+    # Extract all ring_time entries (ISO format)
     alarm_times=$(echo "$alarms_json" | grep -oP "'ring_time': <'\K[^']+")
 
-    # Finde den frühesten Zeitpunkt (sortiere nach ISO-Zeit)
+    if [[ -z "$alarm_times" ]]; then
+        log "[INFO] No ring_time entries found in alarms list"
+        echo ""
+        return
+    fi
+
+    log "[DEBUG] Extracted alarm times:"
+    echo "$alarm_times" | while read -r t; do log " - $t"; done
+
+    # Sort ISO 8601 times and get the earliest one
     next_alarm=$(echo "$alarm_times" | sort | head -n1)
 
-    # Optional: in UNIX-Timestamp umwandeln
+    log "[INFO] Next alarm ISO time: $next_alarm"
+
+    # Convert to UNIX timestamp
     next_ts=$(date --date="$next_alarm" +%s 2>/dev/null)
 
-    echo "$next_ts"
+    if [[ -n "$next_ts" && "$next_ts" =~ ^[0-9]+$ ]]; then
+        log "[INFO] Next alarm UNIX timestamp: $next_ts"
+        echo "$next_ts"
+    else
+        log "[WARN] Failed to parse next alarm time to UNIX timestamp"
+        echo ""
+    fi
 }
 
 check_alarm_within_minutes() {
