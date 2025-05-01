@@ -57,7 +57,7 @@ log() {
 }
 
 check_dependencies() {
-    local dependencies=(logger jq gdbus grep awk sed)
+    local dependencies=(logger jq gdbus grep awk sed jq)
     local missing=0
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
