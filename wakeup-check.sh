@@ -81,7 +81,7 @@ on_exit() {
 }
 
 turn_off_display() {
-    log "turn_off_display($DISPLAY_CONTROL_METHOD)"
+    log "[INFO] turn off display ($DISPLAY_CONTROL_METHOD)"
 
     case "$DISPLAY_CONTROL_METHOD" in
         brightness)
