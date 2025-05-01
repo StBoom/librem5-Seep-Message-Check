@@ -10,10 +10,6 @@ exec 200>"$LOCKFILE"  # Öffne Datei mit Deskriptor 200
 # Versuche, den Lock zu setzen, warte wenn eine andere Instanz läuft
 flock 200 || { echo "[$(date +'%Y-%m-%d %H:%M:%S')] Another instance is already running. Waiting..."; flock 200; }
 
-log() {
-    local msg="$1"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $msg" >> "$LOGFILE"
-}
 
 # Load configuration
 CONFIG_FILE="/etc/wakeup-check.conf"
@@ -24,14 +20,41 @@ fi
 source "$CONFIG_FILE"
 
 # Verify required variables are set
-REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT WAKE_BEFORE_ALARM_MINUTES MAX_WAIT BRIGHTNESS)
+REQUIRED_VARS=(TARGET_USER LOGFILE QUIET_HOURS_START QUIET_HOURS_END WAKE_TIMESTAMP_FILE RTC_WAKE_WINDOW_SECONDS NEXT_RTC_WAKE_MIN PING_HOST NOTIFICATION_TIMEOUT WAKE_BEFORE_ALARM_MINUTES MAX_WAIT BRIGHTNESS LOGLEVEL)
+
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var}" ]; then
         log "[ERROR] Required config variable '$var' is not set."
         exit 1
     fi
 done
+log() {
+    local level="$1"
+    local msg="$2"
 
+    # Lade das Log-Level aus der Konfigurationsdatei
+    local current_level="$LOGLEVEL"
+
+    # Definiere eine Reihenfolge der Log-Level
+    local levels=("DEBUG" "INFO" "WARN" "ERROR")
+    local level_index
+    local current_level_index
+    for level_index in "${!levels[@]}"; do
+        if [[ "${levels[$level_index]}" == "$level" ]]; then
+            local log_level_index=$level_index
+        fi
+        if [[ "${levels[$level_index]}" == "$current_level" ]]; then
+            current_level_index=$level_index
+        fi
+    done
+
+    # Nur Logs auf dem gleichen Level oder höher ausgeben
+    if [[ "$log_level_index" -ge "$current_level_index" ]]; then
+        local timestamp
+        timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
+        echo "[$timestamp] [$level] $msg" >> "$LOGFILE"
+    fi
+}
 check_dependencies() {
     local dependencies=(logger jq gdbus grep awk sed)
     local missing=0
