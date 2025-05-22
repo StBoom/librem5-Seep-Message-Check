@@ -278,10 +278,19 @@ set_rtc_wakeup() {
     local start_ts end_ts quiet_end_ts
     local next_alarm_ts adjusted_wake_ts wake_ts
 
-    #log "Setting RTC Wakeup Current time: $(date -d @$now +'%Y-%m-%d %H:%M:%S')"
+    # Check if RTC_DEVICE is set; if not, use the default value
+    RTC_DEVICE=${RTC_DEVICE:-rtc0}
 
+    # Verify if the specified RTC device exists
+    if [[ ! -d "/sys/class/rtc/$RTC_DEVICE" ]]; then
+        log "[ERROR] RTC Device $RTC_DEVICE does not exist!"
+        exit 1
+    fi
+
+    # Get the current start timestamp for quiet hours
     start_ts=$(date -d "$today $QUIET_HOURS_START" +%s)
 
+    # Calculate quiet hours end timestamp (either today or tomorrow, depending on the time range)
     if [[ "$QUIET_HOURS_END" > "$QUIET_HOURS_START" ]]; then
         end_ts=$(date -d "$today $QUIET_HOURS_END" +%s)
     else
@@ -291,6 +300,7 @@ set_rtc_wakeup() {
     quiet_end_ts=$end_ts
     log "[INFO] Quiet hours: $(date -d @$start_ts +'%Y-%m-%d %H:%M:%S') - $(date -d @$quiet_end_ts +'%Y-%m-%d %H:%M:%S')"
 
+    # Get the next alarm time
     next_alarm_ts=$(get_next_alarm_time)
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" =~ ^[0-9]+$ ]]; then
         log "[INFO] Next alarm at: $(date -d @$next_alarm_ts +'%Y-%m-%d %H:%M:%S')"
@@ -299,43 +309,46 @@ set_rtc_wakeup() {
         next_alarm_ts=""
     fi
 
+    # Determine the wake timestamp based on whether the system is within quiet hours
     if is_quiet_hours; then
-        #log "[INFO] Currently in quiet hours"
         wake_ts=$quiet_end_ts
-        log "[INFO] In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) " > ": $(date -d @$wake_ts)"
+        log "[INFO] In quiet hours, setting wake time to end of quiet hours $(date -d @$QUIET_HOURS_START) - $(date -d @$QUIET_HOURS_END) : $(date -d @$wake_ts)"
     else
+        # Default wake-up time is set relative to the current time
         wake_ts=$(( now + (NEXT_RTC_WAKE_MIN * 60) ))
         log "[INFO] Not in quiet hours - setting default RTC wake in ${NEXT_RTC_WAKE_MIN} minutes: $(date -d @$wake_ts)"
     fi
 
+    # If an alarm time is set earlier than the current wake time, adjust the wake time
     if [[ -n "$next_alarm_ts" && "$next_alarm_ts" -gt "$now" && "$next_alarm_ts" -lt "$wake_ts" ]]; then
         adjusted_wake_ts=$(( next_alarm_ts - (WAKE_BEFORE_ALARM_MINUTES * 60) ))
         log "[INFO] Alarm is earlier than current wake time - adjusting RTC wake to: $(date -d @$adjusted_wake_ts)"
         wake_ts=$adjusted_wake_ts
     fi
 
-    
+    # Validate the calculated wake timestamp
     if ! echo "$wake_ts" | grep -q '^[0-9]\+$'; then
         log "[ERROR] Invalid wake_ts: $wake_ts"
         exit 1
     fi
-    
+
+    # Save the wake timestamp to a file
     if ! echo "$wake_ts" > "$WAKE_TIMESTAMP_FILE"; then
         log "[ERROR] Failed to write timestamp file: $WAKE_TIMESTAMP_FILE"
         exit 1
     fi
 
-    if ! echo 0 > /sys/class/rtc/rtc0/wakealarm 2>/dev/null || ! echo "$wake_ts" > /sys/class/rtc/rtc0/wakealarm 2>/dev/null; then
-        log "[ERROR] Failed to set RTC wakealarm"
+    # Dynamically use the selected RTC device to set the wakealarm
+    if ! echo 0 > "/sys/class/rtc/$RTC_DEVICE/wakealarm" 2>/dev/null || ! echo "$wake_ts" > "/sys/class/rtc/$RTC_DEVICE/wakealarm" 2>/dev/null; then
+        log "[ERROR] Failed to set RTC wakealarm on $RTC_DEVICE"
         exit 1
     fi
 
-    #log "RTC wakealarm set to: $(date -d @$wake_ts)"
+    # Confirm that the wakealarm matches the saved timestamp
     local tsf_actual=$(cat "$WAKE_TIMESTAMP_FILE")
-    local rtc_actual=$(cat /sys/class/rtc/rtc0/wakealarm 2>/dev/null)
+    local rtc_actual=$(cat "/sys/class/rtc/$RTC_DEVICE/wakealarm" 2>/dev/null)
     
     if [[ "$rtc_actual" == "$tsf_actual" ]]; then
-        #log "RTC wakealarm and saved timestamp match"
         log "[INFO] Will wake system at: $(date -d @$wake_ts) due to: $(is_quiet_hours && echo 'end of quiet hours' || echo 'default timing or alarm adjustment')"
     else
         log "[ERROR] RTC wakealarm mismatch - actual: $rtc_actual, timestampfile: $tsf_actual"
