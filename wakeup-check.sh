@@ -198,7 +198,7 @@ use_fbcli() {
     if [ "$NOTIFICATION_USE_FBCLI" == "true" ]; then
         if command -v fbcli >/dev/null 2>&1; then
             log "[INFO] Using fbcli for notification"
-            sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
+            #sudo -u "$TARGET_USER" fbcli -E notification-missed-generic
             sudo -u "$TARGET_USER" fbcli -E message-new-instant
         else
             log "[ERROR] fbcli not found, skipping fbcli notifications"
